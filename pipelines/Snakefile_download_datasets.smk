@@ -2,13 +2,16 @@
 # cd R; Rscript create_sample_table_DNA_samples.R
 # 
 # ------------------------------------------------------
-# Required files
+# Required files (manual downloads)
 # 
 # Convert this xlsx to tsv (https://ftp.ncbi.nlm.nih.gov/geo/series/GSE60nnn/GSE60314/suppl/GSE60314_GEO_run_summary.xlsx)
 # os.path.join(config['projectDir'], config['expression_datasets_dir'], 'lin/GSE60314_GEO_run_summary_metadata.txt/')
 # 
 # Dowload this file from : https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE140872&format=file
 # os.path.join(config['projectDir'], config['expression_datasets_dir'], 'keele', 'data_all', 'GSE140872_RAW.tar')
+# 
+# The GTEx v8 metadata (phenotypes) were downloaded from dbagp (they are authorized access only)
+# os.path.join(config['projectDir'], config['auxiliary_Files']['dir'], 'GTEx_Phenotypes_v8/'),
 
 import os
 
