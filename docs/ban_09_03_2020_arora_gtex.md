@@ -3,7 +3,7 @@
 
 ## Differences on pipeline processing on GTEx/TCGA data 
 
-###Aims
+### Aims
 
 1. To recreate Arora et al. clustering by PCA and assess whether clustering is better after normalizing by transcriptome diversity.
 2. To assess if there are transcritptome diversity differences across the different processing pipelines outlined in Arora et al.
@@ -40,7 +40,7 @@ There are two outputs for each project/expression-estimate combination:
 
 ## Associations between GTEx metadata and transcriptome diversity
 
-### Aims:
+### Aims
 
 1. To assess if and which metadata information (sex, age, RIN ischemic time, etc.) are associated with the transcriptome diversity of each sample
 2. To assess if there are significant differences on transcriptome diversity across tissues
