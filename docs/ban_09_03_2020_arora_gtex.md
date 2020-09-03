@@ -9,7 +9,7 @@
 
 ### Files to use (PCA)
 
-The information of the expression matrices and their location is in the following table (see description here):
+The information of the expression matrices and their location is in the following table (see description [here](https://github.com/pablo-gar/transcriptome_diversity/blob/master/docs/important_locations.md)):
 `/scratch/users/paedugar/transcriptome_diversity/auxiliary_files/expression_datasets.txt`
 
 Transcrriptome diverisity files can be found here:
