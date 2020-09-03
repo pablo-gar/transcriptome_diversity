@@ -1,0 +1,201 @@
+
+---
+title: "Analysis on eQTL results w/wo transcriptome diversity as covariate using Keele's data and GTEx method"
+output:
+    html_document:
+        fig_crop: no
+        toc: true
+        toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+options(digits=18)
+```
+
+```{r libraries}
+source('../../R/ggthemes.R', chdir=T)
+#source('../../R/gtex.R', chdir=T)
+source('../../R/misc.R', chdir=T)
+#source('../../R/GWAS.R', chdir=T)
+#source('../../R/idConverter.R', chdir=T)
+source('../../R/plots.R', chdir=T)
+library('readr')
+library('ggplot2')
+#library('purrr')
+library('dplyr')
+library('tidyr')
+library('kableExtra')
+library('patchwork')
+#library('broom')
+#library('forcats')
+#library('broom')
+library('stringr')
+
+```
+
+```{r opts}
+# Colour of points and bars
+FILL_COL3 <- 'darkslategray'
+FILL_COL2 <- 'cadetblue4'
+FILL_COL1 <- 'cadetblue2'
+
+# Colour for del/amp/totaa
+FILL_COL4 <- 'forestgreen'
+FILL_COL5 <- 'coral'
+FILL_COL6 <- 'dodgerblue3'
+
+
+# Files
+eqtl_trans_folder <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity_other_datasets/keele_eqtls_covariate_transcriptome_variability/'
+eqtl_trans_batch_folder <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity_other_datasets/keele_eqtls_covariate_transcriptome_variability_and_batch/'
+eqtl_batch_folder <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity_other_datasets/keele_eqtls_covariate_batch/'
+eqtl_no_covs_folder <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity_other_datasets/keele_eqtls_no_covariate/'
+```
+
+```{r ref.label='source'}
+```
+
+
+# Goal
+This analysis aims to understand to what extend transcriptome diverisity can influence eQTL analysis
+
+
+# Results
+
+Load the data
+
+```{r load_data, results='hide'}
+# eqtl results using transcriptome diversity as covariate
+eqtl_trans <- read_eqtl(eqtl_trans_folder, 'transcriptome_diversity_as_covariates')
+eqtl_trans_batch <- read_eqtl(eqtl_trans_batch_folder, 'transcriptome_diversity_batch_as_covariates')
+eqtl_batch <- read_eqtl(eqtl_trans_batch_folder, 'batch_as_covariates')
+eqtl_no_covs <- read_eqtl(eqtl_no_covs_folder, 'no_covariates')
+
+eqtl_results <- bind_rows(eqtl_trans, eqtl_trans_batch, eqtl_batch, eqtl_no_covs)
+eqtl_results$group <- factor(eqtl_results$group, levels=c('no_covariates', 'batch_as_covariates', 'transcriptome_diversity_as_covariates', 'transcriptome_diversity_batch_as_covariates'))
+colnames(eqtl_results)[1:10] <- c('gene_id', 'variants_tested', 'MLE_1_beta_shape', 'MLE_2_beta_shape', 'dummy', 'variant_id', 'ditance_to_tss', 'nominal_pvalue', 'permutation1_pvalue', 'permutation_pvalue')
+
+#eqtl_results <- bind_rows(eqtl_trans, eqtl_trans_no_peer, eqtl_no_trans, eqtl_peer)
+#eqtl_results$group <- factor(eqtl_results$group, levels=c('no_covariates', 'transcriptome_diversity_as_covariates', 'transcriptome_diversity_as_covariates_plus_nonPeer', 'peer'))
+#colnames(eqtl_results)[1:10] <- c('gene_id', 'variants_tested', 'MLE_1_beta_shape', 'MLE_2_beta_shape', 'dummy', 'variant_id', 'ditance_to_tss', 'nominal_pvalue', 'permutation1_pvalue', 'permutation_pvalue')
+
+
+eqtl_results_merged <- eqtl_results %>%
+    group_by(group, id_names) %>%
+    mutate(fdr=p.adjust(permutation_pvalue, method='BH')) %>%
+    ungroup()
+
+# Load expression associations with transcriptome diversity
+#expression_association_files <- list.files(expression_association_dir, recursive=T, pattern='significant.txt.gz$', full.names=T)
+#expression_associations <- concatenate_table_files2(expression_association_files, id_names=basename(dirname(expression_association_files)))
+#
+#eqtl_results_merged <- left_join(eqtl_results, select(expression_associations, c(FDR, id_names, gene))) 
+#eqtl_results_merged$expression_association_status <- ifelse(is.na(eqtl_results_merged$FDR), 'not_associated_w_transDiv', 'associated_w_transDiv')
+```
+
+
+
+Plot distribution of pvalues in both analysis
+```{r plot_pvalues, fig.width=15}
+ggplot(eqtl_results_merged, aes(x=fdr)) +
+    geom_histogram(fill='grey60', colour='grey20', bins=100) +
+    facet_grid(id_names~group, scales='free_y') +
+    theme_sleek()
+```
+
+QQ plot like batch as covariates vs no covariates
+```{r fig.width=12}
+
+toPlot <- eqtl_results_merged %>%
+    dplyr::select(gene_id, id_names, group, nominal_pvalue) %>%
+    pivot_wider(names_from=group, values_from=nominal_pvalue)
+
+
+ggplot(toPlot, aes(x=-log10(no_covariates), y=-log10(batch_as_covariates))) +
+    geom_point(size=0.8) +
+    geom_abline(slope=1, intercept=0, colour=FILL_COL2) +
+    facet_grid(.~id_names) +
+    #xlim(0,50) +
+    #ylim(0,50) +
+    theme_sleek()
+```
+
+
+QQ plot like transcriptome diversity vs no covariates
+```{r fig.width=12}
+
+toPlot <- eqtl_results_merged %>%
+    dplyr::select(gene_id, id_names, group, nominal_pvalue) %>%
+    pivot_wider(names_from=group, values_from=nominal_pvalue)
+
+
+ggplot(toPlot, aes(x=-log10(no_covariates), y=-log10(transcriptome_diversity_as_covariates))) +
+    geom_point(size=0.8) +
+    geom_abline(slope=1, intercept=0, colour=FILL_COL2) +
+    facet_grid(.~id_names) +
+    #xlim(0,50) +
+    #ylim(0,50) +
+    theme_sleek()
+```
+
+QQ plot like batch vs transcriptome diversity
+```{r fig.width=12}
+
+toPlot <- eqtl_results_merged %>%
+    dplyr::select(gene_id, id_names, group, nominal_pvalue) %>%
+    pivot_wider(names_from=group, values_from=nominal_pvalue)
+
+
+ggplot(toPlot, aes(x=-log10(batch_as_covariates), y=-log10(transcriptome_diversity_as_covariates))) +
+    geom_point(size=0.8) +
+    geom_abline(slope=1, intercept=0, colour=FILL_COL2) +
+    facet_grid(.~id_names) +
+    #xlim(0,50) +
+    #ylim(0,50) +
+    theme_sleek()
+```
+
+QQ plot like batch vs batch + transcriptome diversity
+```{r fig.width=12}
+
+toPlot <- eqtl_results_merged %>%
+    dplyr::select(gene_id, id_names, group, nominal_pvalue) %>%
+    pivot_wider(names_from=group, values_from=nominal_pvalue)
+
+
+ggplot(toPlot, aes(y=-log10(transcriptome_diversity_batch_as_covariates), x=-log10(batch_as_covariates))) +
+    geom_point(size=0.8) +
+    geom_abline(slope=1, intercept=0, colour=FILL_COL2) +
+    facet_grid(.~id_names) +
+    #xlim(0,50) +
+    #ylim(0,50) +
+    theme_sleek()
+```
+
+Number of significant results (fdr < 0.01)
+```{r}
+eqtl_results_merged %>%
+    group_by(group, id_names) %>%
+    filter(fdr < 0.1) %>%
+    summarize(signif_results = n()) %>%
+    ungroup() %>%
+    kable() %>%
+    kable_styling()
+
+```
+
+
+
+```{r source}
+read_eqtl <- function(eqtl_dir, group) {
+    
+    cor_files <- list.files(eqtl_dir, full.names=T, recursive=T, pattern='txt.gz$')
+    cor_ids <- str_split_fixed(basename(cor_files), '\\.', n=2)[,1]
+    cors <- concatenate_table_files2(cor_files, id_names=cor_ids, delim=' ', header=F, read_function=read_delim, progress=F)
+    cors$group <- group
+    
+    return(cors)
+}
+```
+

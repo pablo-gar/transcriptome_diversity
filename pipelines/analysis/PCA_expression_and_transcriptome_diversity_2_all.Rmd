@@ -1,0 +1,226 @@
+
+---
+title: "Correlation betweeen transcriptome diversity and PCs of gene expression"
+output:
+    html_document:
+        fig_crop: no
+        toc: true
+        toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+options(digits=4)
+```
+
+```{r libraries}
+source('../../R/ggthemes.R', chdir=T)
+#source('../../R/gtex.R', chdir=T)
+source('../../R/misc.R', chdir=T)
+#source('../../R/GWAS.R', chdir=T)
+#source('../../R/idConverter.R', chdir=T)
+source('../../R/plots.R', chdir=T)
+#source('../../R/misc.R', chdir=T)
+library('readr')
+library('ggplot2')
+#library('purrr')
+library('dplyr')
+library('tidyr')
+library('kableExtra')
+library('patchwork')
+#library('broom')
+#library('forcats')
+#library('broom')
+#library('stringr')
+
+```
+
+```{r opts}
+
+# Colour of points and bars
+FILL_COL3 <- 'darkslategray'
+FILL_COL2 <- 'cadetblue4'
+FILL_COL1 <- 'cadetblue2'
+
+# Colour for del/amp/totaa
+FILL_COL4 <- 'forestgreen'
+FILL_COL5 <- 'coral'
+FILL_COL6 <- 'dodgerblue3'
+
+
+# Files
+PCA_out_dir_gtex <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity/PCA_var_explained_by_transcriptome_diversity/'
+PCA_out_dir_gtex_tmm <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity/PCA_var_explained_by_transcriptome_diversity_tmm/'
+PCA_out_dir_other <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity_other_datasets/PCA_var_explained_by_transcriptome_diversity'
+
+# Expression association dirs
+expression_association_gtex_dir <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity/expression_associations/'
+expression_association_others_dir <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity_other_datasets/expression_associations/'
+```
+
+```{r ref.label='source'}
+```
+
+
+# Goal
+This analysis aims to understand how much the variability observed in an RNA expression matrix can be explained by transcriptome diversity of the samples
+
+The process is:
+
+1. Perform PCA of an expression matrix to reduce dimensionality across genes.
+2. Caluclate shannon entropy (transcriptome diversity) for each sample.
+3. Correlate the loading of each PC with transcriptome diversity. 
+
+If the first PC is the one with the strongest correlation with transcriptome diversity we can conclude that transcriptome diversity explains the majoriity of the variance in the expression matrix
+
+# Results expression associations
+Load data
+```{r}
+
+# All datasets
+expression_association_others <- read_expression_associations(expression_association_others_dir, 'other_datasets', '.txt')
+expression_association_others$r2[is.infinite(expression_association_others$statistic)] <- 1
+expression_association_others <- dplyr::filter(expression_association_others, statistic != 0)
+```
+
+Table of summary statistic for variance explained
+```{r}
+var_explained_others <- expression_association_others %>%
+    group_by(id_names) %>%
+    summarise(mean_r2 = mean(r2), median_r2 = median(r2), first_quartile = quantile(r2, 0.25), third_quartile = quantile(r2, 0.75)) %>%
+    ungroup() %>%
+    arrange(desc(mean_r2))
+
+var_explained_others %>%
+    kable() %>%
+    kable_styling()
+```
+
+
+
+# Results PCA
+
+Load the data
+```{r load_data, results='hide'}
+# GTEx
+#cors_gtex <- read_cors(PCA_out_dir_gtex, 'GTEx', 'cors.txt')
+#pca_stats_gtex <-read_cors(PCA_out_dir_gtex, 'GTEx', 'PC_stats')
+## GTEx tmm 
+#cors_gtex_tmm <- read_cors(PCA_out_dir_gtex_tmm, 'GTEx_tmm', 'cors.txt')
+#pca_stats_gtex_tmm <-read_cors(PCA_out_dir_gtex_tmm, 'GTEx_tmm', 'PC_stats')
+
+# TCGA
+cors_other <- read_cors(PCA_out_dir_other, 'all', 'cors.txt')
+cors_other$project[grepl('arora', cors_other$id_names)] <- sapply(strsplit(cors_other$id_names[grepl('arora', cors_other$id_names)], '_'), function(x) paste0(x[1:3], collapse='_'))
+
+pca_stats_other <-read_cors(PCA_out_dir_other, 'all', 'PC_stats')
+pca_stats_other$project[grepl('arora', pca_stats_other$id_names)] <- sapply(strsplit(pca_stats_other$id_names[grepl('arora', pca_stats_other$id_names)], '_'), function(x) paste0(x[1:3], collapse='_'))
+
+# Merged
+#cors_all <- bind_rows(cors_gtex, cors_gtex_tmm, cors_other)
+cors_all <- cors_other
+
+#pca_stats_all <- bind_rows(pivot_longer(pca_stats_gtex, starts_with('PC'), names_to='feature', values_to='stat_value'),
+#                           pivot_longer(pca_stats_gtex_tmm, starts_with('PC'), names_to='feature', values_to='stat_value'),
+#                           pivot_longer(pca_stats_other, starts_with('PC'), names_to='feature', values_to='stat_value'))
+
+pca_stats_all <-pivot_longer(pca_stats_other, starts_with('PC'), names_to='feature', values_to='stat_value')
+
+pca_stats_all <- filter(pca_stats_all, stat=='Proportion of Variance') %>%
+    dplyr::rename(proportion_var = 'stat_value') %>%
+    select(-stat)
+
+pca_all  <- left_join(cors_all,pca_stats_all)
+
+```
+
+## Total variance explained by transcriptome diversity
+
+
+```{r, fig.height=20}
+var_explained_by_trans <- pca_all %>%
+    group_by(id_names, project) %>%
+    summarise(var_explained_by_trans = sum((pearson_cor^2) * proportion_var)) %>%
+    ungroup()
+
+ggplot(var_explained_by_trans, aes(x=var_explained_by_trans, y=id_names)) +
+    geom_bar(stat='identity', fill=FILL_COL3) +
+    facet_wrap(~project, scales='free_y', ncol=3) +
+    theme_grid_x()
+```
+
+
+# GTEx 
+
+select datasets
+```{r}
+cors <- cors_other
+pca_stats <- pca_stats_other
+```
+
+Plot
+```{r make_plots, fig.height = 20 }
+
+pca_stats <- pivot_longer(pca_stats, starts_with('PC'), names_to='PC', values_to='stat_value')
+pca_stats <- filter(pca_stats, stat=='Proportion of Variance')
+pca_stats <- dplyr::rename(pca_stats,feature='PC')
+
+# Getting the top PC that correlates with transcriptome diversity
+top_PC <- cors %>%
+    group_by(id_names) %>%
+    arrange(desc(abs(pearson_cor))) %>%
+    filter(row_number() == 1) %>%
+    ungroup() %>%
+    left_join(pca_stats) %>%
+    mutate(dummy='a', cor_sign = ifelse(pearson_cor>0, '+', '-'), stat_value=signif(stat_value,2))
+
+top_PC$id_names <- factor(top_PC$id_names, levels=top_PC$id_names[order(abs(top_PC$pearson_cor))], ordered=T)
+
+p_cor_PC1 <- ggplot(top_PC, aes(y=id_names, x=abs(pearson_cor))) +
+    geom_point() +
+    xlim(c(0,1)) +
+    facet_wrap(~project, scales='free_y', ncol=3) +
+    theme_bw()
+
+p_cor_PC1 
+
+#p_signs <- ggplot(top_PC, aes(y=id_names, x=dummy)) +
+#    geom_text(aes(label=cor_sign)) +
+#    theme_fullBlank()
+#
+#p_top_PC <- ggplot(top_PC, aes(y=id_names, x=dummy)) +
+#    geom_text(aes(label=feature), size=2.1) +
+#    theme_fullBlank()
+#
+#p_top_PC_var_explained <- ggplot(top_PC, aes(y=id_names, x=dummy)) +
+#    geom_tile(aes(fill=stat_value)) +
+#    geom_text(aes(label=stat_value), size=2.1) +
+#    scale_fill_gradientn(colors=c('white', 'red')) +
+#    theme_fullBlank() +
+#    theme(legend.position='top')
+#
+#p_cor_PC1 + p_signs + p_top_PC + p_top_PC_var_explained + plot_layout(design="AAAAAAAAABCD")
+
+```
+
+```{r source}
+read_cors <- function(pc_dir, project, pattern) {
+    
+    cor_files <- list.files(pc_dir, full.names=T, recursive=T, pattern=pattern)
+    cor_ids <- basename(dirname(cor_files))
+    cors <- concatenate_table_files2(cor_files, id_names=cor_ids)
+    cors$project <- project
+    
+    return(cors)
+}
+
+read_expression_associations <- function(pc_dir, project, pattern) {
+    
+    cor_files <- list.files(pc_dir, full.names=T, recursive=T, pattern=pattern)
+    cor_ids <- basename(cor_files)
+    cors <- concatenate_table_files2(cor_files, id_names=cor_ids, col_types='ccdddddd')
+    cors$project <- project
+    
+    return(cors)
+}
+```

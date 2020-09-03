@@ -1,0 +1,161 @@
+
+---
+title: "Influence of library prep method on transcriptome diversity drosophila data from  et al."
+output:
+    html_document:
+        fig_crop: no
+        toc: true
+        toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+#options(digits=18)
+```
+
+```{r libraries}
+source('../../R/ggthemes.R', chdir=T)
+source('../../R/gtex.R', chdir=T)
+source('../../R/misc.R', chdir=T)
+#source('../../R/GWAS.R', chdir=T)
+#source('../../R/idConverter.R', chdir=T)
+source('../../R/plots.R', chdir=T)
+#source('../../R/misc.R', chdir=T)
+library('readr')
+#library('GGally')
+library('ggplot2')
+library('purrr')
+library('dplyr')
+library('tidyr')
+library('kableExtra')
+#library('broom')
+#library('forcats')
+library('broom')
+library('stringr')
+library('patchwork')
+
+```
+
+```{r opts}
+
+# Colour of points and bars
+FILL_COL3 <- 'darkslategray'
+FILL_COL2 <- 'cadetblue4'
+FILL_COL1 <- 'cadetblue2'
+
+# Colour for del/amp/totaa
+FILL_COL_AMP <- 'forestgreen'
+FILL_COL_DEL <- 'coral'
+FILL_COL_TOTAL <- 'dodgerblue3'
+
+
+# Files
+transcriptome_diversity_dir <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity_other_datasets/transcriptome_diversity/'
+metadata_dir <- '/scratch/users/paedugar/cnv_gtex_project/expression_matrices/'
+```
+
+# Metadata associations with genomic instability
+
+Read genomic instability values, normalized exon junctions and Covariates
+
+```{r read_transcriptome_diversity}
+transcriptome_diversity <- read_files(transcriptome_diversity_dir, 'sarantopoulou')
+transcriptome_diversity$normalization <- str_split_fixed(transcriptome_diversity$id_names, '_', 3)[,3]
+sample_metadata <- read_files(metadata_dir, 'sarantopoulou.*cov', join_rows=F, join_cols=F) %>%
+    map_dfr(function(x) pivot_longer(x, cols=-all_of(c('ID', 'id_names')), names_to='sample_id', values_to='metadata_value')) %>% 
+    select(-id_names) %>%
+    pivot_wider(sample_id, names_from=ID, values_from=metadata_value)
+
+transcriptome_diversity <- left_join(transcriptome_diversity, sample_metadata)
+```
+
+
+Plot all pairwise assocaitions
+```{r fig.width=10, fig.height=10}
+#ggpairs(dplyr::filter(transcriptome_diversity, normalization=='tpm'), columns=3:ncol(transcriptome_diversity), cardinality_threshold=16)
+```
+
+Plot individual effects
+```{r fig.width=11, fig.height=4}
+toPlot <- transcriptome_diversity %>%
+    mutate(individual = factor(individual, ordered=T, levels=names(sort(tapply(transcriptome_diversity, individual, median)))))
+
+ggplot(toPlot, aes(x=individual, y=transcriptome_diversity)) +
+    geom_violin(fill=FILL_COL2) +
+    geom_jitter(colour='black', width= 0.1, size=1, alpha=0.6) +
+    facet_grid(.~normalization) +
+    theme_grid_y() +
+    theme(axis.text.x=element_text(angle=30, hjust=1))
+```
+
+Plot strain environment effects
+```{r fig.width=10, fig.height=7}
+toPlot <- transcriptome_diversity %>%
+    mutate(library = factor(library, ordered=T, levels=names(sort(tapply(transcriptome_diversity, library, median)))))
+
+ggplot(toPlot, aes(x=library, y=transcriptome_diversity)) +
+    geom_violin(fill=FILL_COL2) +
+    geom_jitter(colour='black', width= 0.1, size=0.8, alpha=0.6) +
+    facet_grid(.~normalization) +
+    theme_grid_y() +
+    theme(axis.text.x=element_text(angle=30, hjust=1))
+```
+
+Plot strain effects
+```{r}
+ggplot(transcriptome_diversity, aes(x=strain, y=transcriptome_diversity)) +
+    geom_violin(fill=FILL_COL2) +
+    geom_jitter(colour='black', width= 0.1, size=0.8, alpha=0.6) +
+    facet_grid(.~normalization) +
+    theme_grid_y() +
+    theme(axis.text.x=element_text(angle=30, hjust=1))
+```
+
+Plot read depth
+```{r fig.width=7, fig.height=5}
+ggplot(transcriptome_diversity, aes(x=log10(as.numeric(mapped_reads)), y=transcriptome_diversity)) +
+    geom_point(alpha=0.4) +
+    facet_grid(~normalization) +
+    theme_grid_y()
+```
+
+Plot read depth relationship with platform
+```{r fig.width=7, fig.height=5}
+ggplot(transcriptome_diversity, aes(y=log10(as.numeric(mapped_reads)), x=library)) +
+    geom_violin(fill=FILL_COL2) +
+    geom_jitter(colour='black', width= 0.1, size=0.8, alpha=0.6) +
+    facet_grid(~normalization) +
+    theme_grid_y()
+```
+
+Visualize effects on transcriptome diversity based on TPM of strain and library prep
+```{r  fig.width=9, fig.height=6}
+p1 <- ggplot(dplyr::filter(transcriptome_diversity, normalization=='tpm'), aes(x=strain, y=transcriptome_diversity)) +
+    geom_violin(fill=FILL_COL2) +
+    geom_jitter(aes(colour=log10(as.numeric(mapped_reads))), width=0.1) + labs(subtitle='TPM') +
+    facet_grid(~library) +
+    theme_grid_y()
+
+p2 <- ggplot(dplyr::filter(transcriptome_diversity, normalization=='tmm'), aes(x=strain, y=transcriptome_diversity)) +
+    geom_violin(fill=FILL_COL2) +
+    geom_jitter(aes(colour=log10(as.numeric(mapped_reads))), width=0.1) + labs(subtitle='TPM') +
+    labs(subtitle='TMM') +
+    facet_grid(~library) +
+    facet_grid(~library) +
+    theme_grid_y()
+
+p1 / p2
+```
+
+
+```{r source}
+read_files <- function(pc_dir, pattern, ...) {
+    
+    cor_files <- list.files(pc_dir, full.names=T, recursive=T, pattern=pattern)
+    cor_ids <- str_remove(basename(cor_files), '.txt')
+    cors <- concatenate_table_files2(cor_files, id_names=cor_ids, ...)
+    
+    return(cors)
+}
+```
+

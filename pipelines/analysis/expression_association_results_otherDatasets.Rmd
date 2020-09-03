@@ -1,0 +1,117 @@
+---
+title: "Results for gene expression associations with transcriptome diversity in all datasets"
+output:
+    html_document:
+        fig_crop: no
+        toc: true
+        toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+options(digits=4)
+```
+
+```{r libraries}
+source('../../R/ggthemes.R', chdir=T)
+source('../../R/gtex.R', chdir=T)
+source('../../R/misc.R', chdir=T)
+#source('../../R/GWAS.R', chdir=T)
+#source('../../R/idConverter.R', chdir=T)
+#source('../../R/plots.R', chdir=T)
+#source('../../R/misc.R', chdir=T)
+library('readr')
+library('ggplot2')
+library('purrr')
+library('dplyr')
+library('tidyr')
+library('kableExtra')
+library('patchwork')
+#library('broom')
+#library('stringr')
+```
+
+```{r opts}
+# Colour of points and bars
+FILL_COL3 <- 'darkslategray'
+FILL_COL2 <- 'cadetblue4'
+FILL_COL1 <- 'cadetblue2'
+
+# Colour for del/amp/totaa
+FILL_COL_AMP <- 'forestgreen'
+FILL_COL_DEL <- 'coral'
+FILL_COL_TOTAL <- 'dodgerblue3'
+
+
+# Files
+expression_associations_dir <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity_other_datasets/expression_associations/'
+file_descriptions_file <- '/scratch/users/paedugar/cnv_gtex_project/auxiliary_files/expression_datasets.txt'
+```
+
+
+# Expression association results with transcriptome diversity
+
+Read data
+```{r results='hide'}
+file_descriptions <- read_tsv(file_descriptions_file) %>%
+    dplyr::select(-c(name, path)) %>%
+    rename(id_names='id')
+
+expression_association_files <- list.files(expression_associations_dir, recursive=T, full=T, pattern='.txt$')
+expression_association <- concatenate_table_files2(expression_association_files, id_names=basename(gsub('.txt', '',expression_association_files)))
+expression_association <- left_join(expression_association, file_descriptions)
+```
+
+
+## Number of significant hits per tissue
+```{r fig.height=15, fig.width=8}
+signif_association <- expression_association %>%
+    group_by(id_names, group, subgroup, count_type, method, tissue) %>%
+    summarise(significant=sum(FDR < 0.05), total = n()) %>%
+    ungroup() %>%
+    mutate(percentage_signif = significant/total * 100, plot_text = paste(significant, '/', total), dummy='a',
+           id_names = factor(id_names, levels=id_names[order(percentage_signif)]))
+    
+for(group_c in unique(signif_association$group)) {
+    
+    current_g <- dplyr::filter(signif_association, group == group_c) 
+    
+    for(subgroup_c in unique(current_g$subgroup)) {
+        current <-  dplyr::filter(current_g, subgroup == subgroup_c)
+        p <- ggplot(current, aes(x=percentage_signif, y=tissue)) +
+            geom_bar(aes(fill=method), colour='black', position='dodge', stat='identity') +
+            scale_fill_manual(values=COLOR_BLIND_PALETTE) +
+            facet_grid(.~count_type, scales='free_y') +
+            theme_grid_x()
+        print(p)
+    }
+    
+}
+    
+```
+
+## directionality
+```{r fig.height=15, fig.width=8}
+signif_association <- expression_association %>%
+    group_by(id_names, group, subgroup, count_type, method, tissue) %>%
+    dplyr::filter(FDR < 0.05) %>%
+    summarise(percentage_positive = sum(statistic>0)/n()*100) %>%
+    ungroup() 
+    
+for(group_c in unique(signif_association$group)) {
+    
+    current_g <- dplyr::filter(signif_association, group == group_c) 
+    
+    for(subgroup_c in unique(current_g$subgroup)) {
+        current <-  dplyr::filter(current_g, subgroup == subgroup_c)
+        p <- ggplot(current, aes(x=percentage_positive, y=tissue)) +
+            geom_bar(aes(fill=count_type), position='dodge', stat='identity') +
+            scale_fill_manual(values=c(FILL_COL2, FILL_COL3)) +
+            facet_grid(method~., scales='free_y') +
+            theme_grid_x()
+        print(p)
+    }
+    
+}
+    
+```

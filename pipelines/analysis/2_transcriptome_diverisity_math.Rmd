@@ -1,0 +1,110 @@
+
+---
+title: "Transcriptome diversity math"
+output:
+    html_document:
+        fig_crop: no
+        toc: true
+        toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+```
+
+# Introduction
+
+Transcriptome diversity is defined as the number of genes being expressed in conjunction with their expression level. The extreme cases for transcriptome diversity are when all genes are expressed at the same level (highest transcriptome diverisity), and when only one gene is expressed at a very hihg level (lowest transcriptome diversity). 
+
+Transcriptome diversity was introduced by Matinez and Reyes-Valdes on 2008. To quantify transcriptome diversity they used Shannon entropy, which had been previously used to quantify diviersity across different subfields of genetics, including DNA sequences, population genetics, and ecology.
+
+Martinez and Reyes-Valdes used human gene expression data from Massively Parallel Signature Sequencing (MPSS) to characterize transcriptome diverisity. While the study served as a proof-of-principle for the use of Shannon diversity to measure transcriptome diversity, the effects of it on gene expression quantification of RNA-sequencing are understudied. In particular, given the relative nature of RNA-sequencing and its dependence on sequencing depth, it's imperative to investigate whether differences on transcriptome diversity across different samples influences quantification of gene expression. For example, a gene with high read coverage (either because it's highly expressed or due to a sampling artifact) will lead to a less diverse transcriptome since there's less sequencing power available for the rest of the genes and potentially leading to an underestimation of their expression.
+
+If transcriptome diversity of a given RNA-seq sample influences global gene expression quantification, then proper ways to control for it are necessary specially for analyses that involved inter-sample comparisons, such as differential gene expression analysis and eQTL discovery.
+
+TALK ABOUT TMM AND median of ratios normalization
+
+
+# Transcriptome diversity quantification
+
+### Transcriptome diversity from gene counts
+
+Shannon entropy $H$ of a population (RNA-seq library) is defined as:
+
+$$H = -\sum_{i}^{G} p_i log_2(p_i)$$
+
+Or standardized as:
+$$H_s = \frac{-\sum_{i}^{G} p_i log_2(p_i)}{log_2(G)}$$
+
+Where $p_i$ is the probality of observing gene $i$ in the library, and $G$ is the total number of genes expressed.
+
+$p_i$ can be defined as:
+
+$$p_i = \frac{c_i}{l_i} \cdot \frac{1}{\sum_{j}^{G}\frac{c_j}{l_j}} $$
+
+Where $c_i$ is the read count from gene $i$ and $l_i$ is the gene lenght in Bps. Thus Shannon entropy can be expressed as:
+
+$$H = -\sum_{i}^{G} \frac{c_i}{l_i \sum_{j}^{G}\frac{c_j}{l_j}} log_2\left(\frac{c_i}{l_i \sum_{j}^{G}\frac{c_j}{l_j}}\right)$$
+
+### Transcriptome diversity from TPM values
+
+When using TPM values $p_i$ can be defined as:
+
+$$p_i = \frac{TPM_i}{\sum_{j}^{G}TPM_j} $$
+
+Which can be reduced as follows.
+
+Given the definition of $TPM_i$:
+
+$$TPM_i = \frac{c_i}{l_i \sum_{j}^{G} \frac{c_i}{l_i}} \cdot 10^6$$
+
+Then $p_i$ is:
+
+$$p_i = \frac{\frac{c_i}{l_i \sum_{j}^{G} \frac{c_i}{l_i}} \cdot 10^6} {\sum_{j}^{G}\frac{c_j}{l_j \sum_{k}^{G} \frac{c_k}{l_k}} \cdot 10^6} $$
+
+$$p_i = \frac{c_i}{l_i} \cdot \frac{1}{\sum_{j}^{G}\frac{c_j}{l_j}} $$
+
+And thus Shannon entropy from TPM values is:
+
+$$H = -\sum_{i}^{G} p_i log_2(p_i)$$
+
+$$H = -\sum_{i}^{G} \frac{TPM_i}{\sum_{j}^{G}TPM_j} log_2\left(\frac{TPM_i}{\sum_{j}^{G}TPM_j}\right)$$
+
+$$H = -\sum_{i}^{G} \frac{c_i}{l_i \sum_{j}^{G}\frac{c_j}{l_j}} log_2\left(\frac{c_i}{l_i \sum_{j}^{G}\frac{c_j}{l_j}}\right)$$
+
+### Transcriptome diversity from RPKM values
+
+When using RPKM values $p_i$ can be defined as:
+
+$$p_i = \frac{RPKM_i}{\sum_{j}^{G}RPKM_j} $$
+
+Which can be reduced as follows.
+
+Given the definition of $RPKM_i$:
+
+$$RPKM_i = \frac{c_i}{l_i/{10^3} \cdot \sum_{j}^{G} c_j / 10^6}$$
+
+$$RPKM_i = \frac{c_i \cdot 10^3 \cdot 10^6} {l_i \sum_{j}^{G} c_j} $$
+
+Then $p_i$ is:
+
+$$p_i = \frac{\frac{c_i \cdot 10^3 \cdot 10^6} {l_i \sum_{j}^{G} c_j}} {\sum_{j}^{G} \frac{c_j \cdot 10^3 \cdot 10^6} {l_j \sum_{k}^{G} c_k} } $$
+
+$$p_i = \frac{c_i}{l_i} \cdot \frac{1}{\sum_{j}^{G}\frac{c_j}{l_j}} $$
+
+And thus Shannon entropy from RPKM values is:
+
+$$H = -\sum_{i}^{G} p_i log_2(p_i)$$
+
+$$H = -\sum_{i}^{G} \frac{RPKM_i}{\sum_{j}^{G}RPKM_j} log_2\left(\frac{RPKM_i}{\sum_{j}^{G}RPKM_j}\right)$$
+
+$$H = -\sum_{i}^{G} \frac{c_i}{l_i \sum_{j}^{G}\frac{c_j}{l_j}} log_2\left(\frac{c_i}{l_i \sum_{j}^{G}\frac{c_j}{l_j}}\right)$$
+
+
+### Conclusion
+
+$$H = -\sum_{i}^{G} \frac{TPM_i}{\sum_{j}^{G}TPM_j} log_2\left(\frac{TPM_i}{\sum_{j}^{G}TPM_j}\right) = -\sum_{i}^{G} \frac{RPKM_i}{\sum_{j}^{G}RPKM_j} log_2\left(\frac{RPKM_i}{\sum_{j}^{G}RPKM_j}\right) = -\sum_{i}^{G} \frac{c_i}{l_i \sum_{j}^{G}\frac{c_j}{l_j}} log_2\left(\frac{c_i}{l_i \sum_{j}^{G}\frac{c_j}{l_j}}\right)$$
+
+### Transcriptome diversity from TMM ?
+
+$$H = -\sum_{i}^{G} \frac{TMM_i}{\sum_{j}^{G}TMM_j} log_2\left(\frac{TMM_i}{\sum_{j}^{G}TMM_j}\right) $$

@@ -1,0 +1,182 @@
+---
+title: "Results for gene expression associations with transcriptome diversity"
+output:
+    html_document:
+        fig_crop: no
+        toc: true
+        toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+options(digits=4)
+```
+
+```{r libraries}
+source('../../R/ggthemes.R', chdir=T)
+source('../../R/gtex.R', chdir=T)
+source('../../R/misc.R', chdir=T)
+#source('../../R/GWAS.R', chdir=T)
+#source('../../R/idConverter.R', chdir=T)
+#source('../../R/plots.R', chdir=T)
+#source('../../R/misc.R', chdir=T)
+library('readr')
+library('ggplot2')
+library('purrr')
+library('dplyr')
+library('tidyr')
+library('kableExtra')
+library('patchwork')
+#library('broom')
+#library('stringr')
+```
+
+```{r opts}
+# Colour of points and bars
+FILL_COL3 <- 'darkslategray'
+FILL_COL2 <- 'cadetblue4'
+FILL_COL1 <- 'cadetblue2'
+
+# Colour for del/amp/totaa
+FILL_COL_AMP <- 'forestgreen'
+FILL_COL_DEL <- 'coral'
+FILL_COL_TOTAL <- 'dodgerblue3'
+
+
+# Files
+expression_associations_dir <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity/expression_associations/'
+```
+
+
+# Expression association results with transcriptome diversity
+
+Read data
+```{r results='hide'}
+expression_association_files <- list.files(expression_associations_dir, recursive=T, full=T, pattern='ignificant.txt.gz$')
+expression_association <- concatenate_table_files2(expression_association_files, id_names=basename(dirname(expression_association_files)))
+expression_association <- arrange(expression_association, pvalue)
+
+go_results_files <- list.files(expression_associations_dir, recursive=T, full=T, pattern='GO_results.txt$')
+go_results <- concatenate_table_files2(go_results_files, id_names=basename(dirname(go_results_files)), col_types=cols(result1=col_character()))
+```
+
+## Top hits
+
+```{r}
+head(as.data.frame(expression_association)[,-1], n = 50)
+```
+
+Distribution of f-statistic of signficant hits (FDR < 0.05)
+
+```{r}
+ggplot(filter(expression_association, FDR < 0.05), aes(x=statistic)) +
+    geom_histogram(bins=100, colour='black', fill='grey80') +
+    theme_sleek()
+```
+
+## Number of significant hits per tissue
+```{r fig.height=8.5, fig.width=8}
+toPlot <- expression_association %>%
+    group_by(id_names) %>%
+    summarise(significant=sum(FDR < 0.05), total = n()) %>%
+    ungroup() %>%
+    mutate(percentage_signif = 100 * significant/total, plot_text = paste(significant, '/', total), dummy='a',
+           id_names = factor(id_names, levels=id_names[order(percentage_signif)]))
+    
+p_percentage <- ggplot(toPlot, aes(x=percentage_signif, y=id_names)) +
+    geom_bar(stat='identity', fill='grey80', colour='grey20') +
+    theme_grid_x() 
+
+p_text <- ggplot(toPlot, aes(x=dummy, y=id_names)) +
+    geom_text(aes(label=plot_text)) +
+    theme_fullBlank()
+
+p_percentage + p_text + plot_layout(design='AAAB')
+```
+
+
+
+
+
+## The most repeated hits 
+
+The most repeated genes per type
+
+```{r}
+print_top <- function(x, i) {
+    x %>%
+        filter(snps==i) %>%
+        group_by(gene) %>%
+        summarise(alias=alias[1], freq=n()) %>%
+        ungroup() %>%
+        arrange(-freq) %>%
+        head(50) %>%
+        kable() %>%
+        kable_styling()
+}
+
+print_top(expression_association, 'transcriptome_diversity')
+```
+
+The most enriched GO categories
+
+```{r}
+arrange(go_results, fdr) %>%
+    select(Term, fdr, instability_type, id_names) %>%
+    head(200) %>%
+    mutate(fdr=format(fdr, digits=3)) %>%
+    kable() %>%
+    kable_styling()
+```
+
+<!--
+Save tables for GOrilla, ordered by hits per type
+
+```{r}
+save_GOrilla <- function(x, i, file_name) {
+    x <- x %>%
+        filter(snps==i) %>%
+        group_by(gene) %>%
+        summarise(alias=alias[1], freq=n()) %>%
+        ungroup() %>%
+        arrange(-freq)
+    
+    top <- x %>% 
+        filter(freq >= 3)
+    
+    
+    bottom <- x %>% 
+        filter(freq < 3)
+    
+    print(i)
+    print(paste('Genes in positive group: ', nrow(top)))
+    print(paste('Genes in negative group: ', nrow(bottom)))
+    
+    writeLines(top$gene, con=paste0(file_name, '.positive'))
+    writeLines(bottom$gene, con=paste0(file_name, '.negative'))
+    
+    writeLines(top$alias[!is.na(top$alias)], con=paste0(file_name, '.alias.positive'))
+    writeLines(bottom$gene[!is.na(bottom$alias)], con=paste0(file_name, '.alias.negative'))
+}
+
+save_GOrilla(expression_association, 'total', './GWAS_hits_whole_genome_CNV_expression_association_strategy_GOrilla_total.txt')
+save_GOrilla(expression_association, 'amplification', './GWAS_hits_whole_genome_CNV_expression_association_strategy_GOrilla_amplification.txt')
+save_GOrilla(expression_association, 'deletion', './GWAS_hits_whole_genome_CNV_expression_association_strategy_GOrilla_deletion.txt')
+```
+
+According to GOrilla those genes who are found to be associated with genomic instability in at least 3 tissues are enriched on:
+
+For deletion instability:
+
+- RNA splicing, via transesterification reactions (FDR = 1.74E-9)
+- Cellular aromatic compound metabolic process (FDR = 2.51E-4)
+- Histone modificiation (FDR = 3.5E-3)
+  
+For amplification instability:
+
+- generation of precursor metabolites and energy (FDR = 1.69E-9)
+- Response to cytokine (FDR = 1.03E-7)
+- NADH dehydrogenase complex assembly (FDR = 1.49E-7)
+- Ras protein signal transduction (FDR = 4.01E-4)
+
+-->

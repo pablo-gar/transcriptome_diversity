@@ -1,0 +1,120 @@
+
+---
+title: "Analysis on eQTL results w/wo transcriptome diversity as covariate"
+output:
+    html_document:
+        fig_crop: no
+        toc: true
+        toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+options(digits=18)
+```
+
+```{r libraries}
+source('../../R/ggthemes.R', chdir=T)
+#source('../../R/gtex.R', chdir=T)
+source('../../R/misc.R', chdir=T)
+#source('../../R/GWAS.R', chdir=T)
+#source('../../R/idConverter.R', chdir=T)
+source('../../R/plots.R', chdir=T)
+library('readr')
+library('ggplot2')
+#library('purrr')
+library('dplyr')
+library('tidyr')
+library('kableExtra')
+library('patchwork')
+#library('broom')
+#library('forcats')
+#library('broom')
+library('stringr')
+
+```
+
+```{r opts}
+# Colour of points and bars
+FILL_COL3 <- 'darkslategray'
+FILL_COL2 <- 'cadetblue4'
+FILL_COL1 <- 'cadetblue2'
+
+# Colour for del/amp/totaa
+FILL_COL4 <- 'forestgreen'
+FILL_COL5 <- 'coral'
+FILL_COL6 <- 'dodgerblue3'
+
+
+# Files
+eqtl_trans_folder <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity_other_datasets/keele_eqtls_covariate_transcriptome_variability/'
+eqtl_trans_batch_folder <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity_other_datasets/keele_eqtls_covariate_transcriptome_variability_and_batch/'
+eqtl_batch_folder <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity_other_datasets/keele_eqtls_covariate_batch/'
+eqtl_no_covs_folder <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity_other_datasets/keele_eqtls_no_covariate/'
+
+eqtl_ori_file <- '/scratch/users/paedugar/cnv_gtex_project/expression_datasets/keele/data_paper/pgen.1008537.s034.csv'
+```
+
+```{r ref.label='source'}
+```
+
+
+# Goal
+This analysis aims to understand to what extend transcriptome diverisity can influence eQTL analysis
+
+
+# Results
+
+Load the data
+
+```{r load_data, results='hide'}
+eqtl_batch <- read_eqtl(eqtl_trans_batch_folder, 'batch_as_covariates')
+colnames(eqtl_batch)[1:11] <- c('gene', 'variants_tested', 'MLE_1_beta_shape', 'MLE_2_beta_shape', 'dummy', 'variant_id', 'ditance_to_tss', 'nominal_pvalue', 'permutation1_pvalue', 'permutation_pvalue', 'tissue')
+
+eqtl_ori <- read_csv(eqtl_ori_file)
+```
+
+Looking et the pvalues of the different methods by keele. This is to get an idea of where I can find the strongest associatiions
+
+```{r}
+pvalues <- eqtl_ori %>%
+    group_by(detection_method, tissue) %>%
+    nest() %>%
+    mutate(pvals=lapply(data, function(x) summary(x$eqtl_pval_chrwide)))
+
+pvalues <- cbind(pvalues[,'detection_method'], do.call(rbind, pvalues$pvals))
+
+pvalues
+```
+
+Looks like method one has the lowest pvalues, let's just that one to compare to the results of fastqtl
+
+```{r}
+method <- 'method 1'
+eqtl_merged <- eqtl_ori %>%
+    dplyr::filter(detection_method == method) %>%
+    left_join(eqtl_batch)
+```
+
+Plot pvalues
+
+```{r}
+toPlot <- dplyr::filter(eqtl_merged, tissue=='liver')
+plot(log10(toPlot$eqtl_pval_chrwide), log10(toPlot$permutation_pvalue))
+cor.test(log10(eqtl_merged$eqtl_pval_chrwide), log10(eqtl_merged$permutation_pvalue), na.action=na.ignore)
+```
+
+
+
+```{r source}
+read_eqtl <- function(eqtl_dir, group) {
+    
+    cor_files <- list.files(eqtl_dir, full.names=T, recursive=T, pattern='txt.gz$')
+    cor_ids <- str_split_fixed(basename(cor_files), '\\.', n=2)[,1]
+    cors <- concatenate_table_files2(cor_files, id_names=cor_ids, delim=' ', header=F, read_function=read_delim, progress=F)
+    cors$group <- group
+    
+    return(cors)
+}
+```
+

@@ -1,0 +1,88 @@
+---
+title: "Correlation between TMM and expression normalized by transcriptome diversity"
+output:
+    html_document:
+        fig_crop: no
+        toc: true
+        toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+options(digits=4)
+```
+
+```{r libraries}
+source('../../R/ggthemes.R', chdir=T)
+source('../../R/gtex.R', chdir=T)
+source('../../R/misc.R', chdir=T)
+#source('../../R/GWAS.R', chdir=T)
+#source('../../R/idConverter.R', chdir=T)
+#source('../../R/plots.R', chdir=T)
+#source('../../R/misc.R', chdir=T)
+library('readr')
+library('ggplot2')
+library('purrr')
+library('dplyr')
+library('tidyr')
+library('kableExtra')
+library('patchwork')
+#library('broom')
+#library('stringr')
+```
+
+```{r opts}
+# Colour of points and bars
+FILL_COL3 <- 'darkslategray'
+FILL_COL2 <- 'cadetblue4'
+FILL_COL1 <- 'cadetblue2'
+
+# Colour for del/amp/totaa
+FILL_COL_AMP <- 'forestgreen'
+FILL_COL_DEL <- 'coral'
+FILL_COL_TOTAL <- 'dodgerblue3'
+
+
+# Files
+tmm_file <- '/scratch/users/paedugar/cnv_gtex_project/auxiliary_files/GTEx_Analysis_v8_eQTL_expression_matrices/Whole_Blood.v8.normalized_expression.bed.gz'
+transDiv_norm_file <- '/scratch/users/paedugar/cnv_gtex_project/expression_matrices_transcriptomeDiversity_normalized/gtex_Whole_Blood.txt'
+```
+
+
+Read files
+
+```{r}
+tmm <- read_tsv(tmm_file)
+tmm <- tmm[,-(1:3)]
+tmm <- pivot_longer(tmm, -gene_id, names_to='sample_id', values_to='tmm')
+
+
+transDiv_norm <- read_tsv(transDiv_norm_file)
+gtex_id <- gtexLongToShort(colnames(transDiv_norm))
+transDiv_norm <- transDiv_norm[, !duplicated(gtex_id)]
+colnames(transDiv_norm) <- gtexLongToShort(colnames(transDiv_norm))
+
+transDiv_norm <- pivot_longer(transDiv_norm, -gene_id, names_to='sample_id', values_to='transDiv_norm')
+
+# merging
+merged <- inner_join(tmm, transDiv_norm)
+
+```
+
+
+Doing correlations
+
+```{r}
+cors <- merged %>%
+    group_by(gene_id) %>%
+    summarize(pearson_cor = cor.test(tmm, transDiv_norm)[['estimate']]) %>%
+    ungroup()
+
+ggplot(cors, aes(x=pearson_cor)) +
+    geom_histogram(fill='grey80', colour='grey20', bins=100) +
+    theme_noGrid()
+```
+
+
+
+

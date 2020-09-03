@@ -1,0 +1,94 @@
+
+---
+title: "Potential datasets to use for transcriptome diversity analysis"
+output:
+    html_document:
+        fig_crop: no
+        toc: true
+        toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+```
+
+# Keele et al. 2020
+
+## Overview
+
+- Organism: Mus musculus
+- Data types: RNA-seq, ATAC-seq
+- Goals: caQTL and eQTL mapping
+- Tissues: Liver, lung and kidney
+- Diversity: 47 strains
+- Paper: [https://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1008537](https://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1008537)
+- Data: [https://figshare.com/articles/Processed_data_for_the_manuscript_Integrative_QTL_analysis_of_gene_expression_and_chromatin_accessibility_identifies_multi-tissue_patterns_of_genetic_regulation_/9985514](https://figshare.com/articles/Processed_data_for_the_manuscript_Integrative_QTL_analysis_of_gene_expression_and_chromatin_accessibility_identifies_multi-tissue_patterns_of_genetic_regulation_/9985514)
+  
+## Paper's abstract
+Gene transcription profiles across tissues are largely defined by the activity of regulatory elements, most of which correspond to regions of accessible chromatin. Regulatory element activity is in turn modulated by genetic variation, resulting in variable transcription rates across individuals. The interplay of these factors, however, is poorly understood. Here we characterize expression and chromatin state dynamics across three tissues—liver, lung, and kidney—in 47 strains of the Collaborative Cross (CC) mouse population, examining the regulation of these dynamics by expression quantitative trait loci (eQTL) and chromatin QTL (cQTL). QTL whose allelic effects were consistent across tissues were detected for 1,101 genes and 133 chromatin regions. Also detected were eQTL and cQTL whose allelic effects differed across tissues, including local-eQTL for Pik3c2g detected in all three tissues but with distinct allelic effects. Leveraging overlapping measurements of gene expression and chromatin accessibility on the same mice from multiple tissues, we used mediation analysis to identify chromatin and gene expression intermediates of eQTL effects. Based on QTL and mediation analyses over multiple tissues, we propose a causal model for the distal genetic regulation of Akr1e1, a gene involved in glycogen metabolism, through the zinc finger transcription factor Zfp985 and chromatin intermediates. This analysis demonstrates the complexity of transcriptional and chromatin dynamics and their regulation over multiple tissues, as well as the value of the CC and related genetic resource populations for identifying specific regulatory mechanisms within cells and tissues.
+
+
+# Lin et al. 2016
+
+## Overview
+
+- Organism: Drosophila
+- Data types: RNA-seq
+- Goals: comparison of filtering, normalization and gene expression estimation method
+- Tissues: Full flies
+- Diversity: 726 samples, 16 genotypes, sex and environment
+- Paper: [https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4702322/](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4702322/)
+- Data: [https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE60314](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE60314)
+  
+## Paper's abstract
+
+Background: A generally accepted approach to the analysis of RNA-Seq read count data does not yet exist. We sequenced the mRNA of 726 individuals from the Drosophila Genetic Reference Panel in order to quantify differences in gene expression among single flies. One of our experimental goals was to identify the optimal analysis approach for the detection of differential gene expression among the factors we varied in the experiment: genotype, environment, sex, and their interactions. Here we evaluate three different filtering strategies, eight normalization methods, and two statistical approaches using our data set. We assessed differential gene expression among factors and performed a statistical power analysis using the eight biological replicates per genotype, environment, and sex in our data set. 
+Results: We found that the most critical considerations for the analysis of RNA-Seq read count data were the normalization method, underlying data distribution assumption, and numbers of biological replicates, an observation consistent with previous RNA-Seq and microarray analysis comparisons. Some common normalization methods, such as Total Count, Quantile, and RPKM normalization, did not align the data across samples. Furthermore, analyses using the Median, Quantile, and Trimmed Mean of M-values normalization methods were sensitive to the removal of low-expressed genes from the data set. Although it is robust in many types of analysis, the normal data distribution assumption produced results vastly different than the negative binomial distribution. In addition, at least three biological replicates per condition were required in order to have sufficient statistical power to detect expression differences among the three-way interaction of genotype, environment, and sex. 
+Conclusions: The best analysis approach to our data was to normalize the read counts using the DESeq method and apply a generalized linear model assuming a negative binomial distribution using either edgeR or DESeq software. Genes having very low read counts were removed after normalizing the data and fitting it to the negative binomial distribution. We describe the results of this evaluation and include recommended analysis strategies for RNA-Seq read count data.
+
+# Arora et al. 2020
+
+## Overview
+
+- Organism: Human
+- Data types: RNA-seq, GTEx, TCGA
+- Goals: comparison of RNA processing pipelines from big consortia data
+- Tissues: Multiple
+- Diversity: GTEx v6 and multiple TCGA datasets
+- Paper: [https://www.nature.com/articles/s41598-020-59516-z](https://www.nature.com/articles/s41598-020-59516-z)
+- Data: [https://github.com/sonali-bioc/UncertaintyRNA#downloading-data](https://github.com/sonali-bioc/UncertaintyRNA#downloading-data)
+  
+## Paper's abstract
+
+RNA-sequencing data is widely used to identify disease biomarkers and therapeutic targets using numerical methods such as clustering, classification, regression, and differential expression analysis. Such approaches rely on the assumption that mRnA abundance estimates from RnA-seq are reliable estimates of true expression levels. Here, using data from five RNA-seq processing pipelines applied to 6,690 human tumor and normal tissues, we show that nearly 88% of protein-coding genes have similar gene expression profiles across all pipelines. However, for >12% of protein-coding genes, current best- in-class RNA-seq processing pipelines differ in their abundance estimates by more than four-fold when applied to exactly the same samples and the same set of RnA-seq reads. expression fold changes are similarly affected. Many of the impacted genes are widely studied disease-associated genes. We show that impacted genes exhibit diverse patterns of discordance among pipelines, suggesting that many inter-pipeline differences contribute to overall uncertainty in mRNA abundance estimates. A concerted, community-wide effort will be needed to develop gold-standards for estimating the mRNA abundance of the discordant genes reported here. in the meantime, our list of discordantly evaluated genes provides an important resource for robust marker discovery and target selection.
+
+# Nagarajan et al. 2020
+
+## Overview
+
+- Organism: Human
+- Data types: RNA-seq, ATAC-seq, CRISPR screen
+- Goals: Drug-resistance analyses on breast cancer cell lines defective on SWI-SNF deletions
+- Tissues: Breast cancer cell lines (MCF-7: mammary gland, breast; derived from metastatic site: pleural effusion, 69 yo white female donor)
+- Paper: [https://www.nature.com/articles/s41588-019-0541-5](https://www.nature.com/articles/s41588-019-0541-5)
+- Data: [https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE123285](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE123285)
+- Notes:  No raw data was available, so I asked for it via email (Email's title Request: Raw gene expression counts from Breast cancer study)
+  
+## Paper's abstract
+
+Using genome-wide clustered regularly interspaced short palindromic repeats (CRISPR) screens to understand endocrine drug resistance, we discovered ARID1A and other SWI/SNF complex components as the factors most critically required for response to two classes of estrogen receptor-alpha (ER) antagonists. In this context, SWI/SNF-specific gene deletion resulted in drug resistance. Unexpectedly, ARID1A was also the top candidate in regard to response to the bromodomain and extraterminal domain inhibitor JQ1, but in the opposite direction, with loss of ARID1A sensitizing breast cancer cells to bromodomain and extraterminal domain inhibition. We show that ARID1A is a repressor that binds chromatin at ER cis-regulatory elements. However, ARID1A elicits repressive activity in an enhancer-specific, but forkhead box A1-dependent and active, ER-independent manner. Deletion of ARID1A resulted in loss of histone deacetylase 1 binding, increased histone 4 lysine acetylation and subsequent BRD4-driven transcription and growth. ARID1A mutations are more frequent in treatment-resistant disease, and our findings provide mechanistic insight into this process while revealing rational treatment strategies for these patients.
+
+# Sarantopoulou et al. 2019
+
+## Overview
+
+- Organism: Mouse
+- Data types: RNA-seq
+- Goals: Comparing different library prep methods for differential gene expression analysis
+- Tissues: Liver w and w/o IL-1 beta treatment
+- Paper: [https://www.nature.com/articles/s41598-019-49889-1](https://www.nature.com/articles/s41598-019-49889-1)
+- Data: [https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE124167](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE124167)
+  
+## Paper's abstract
+
+Library preparation is a key step in sequencing. For RNA sequencing there are advantages to both strand specificity and working with minute starting material, yet until recently there was no kit available enabling both. The Illumina TruSeq stranded mRNA Sample Preparation kit (TruSeq) requires abundant starting material while the Takara Bio SMART-Seq v4 Ultra Low Input RNA kit (V4) sacrifices strand specificity. The SMARTer Stranded Total RNA-Seq Kit v2 - Pico Input Mammalian (Pico) by Takara Bio claims to overcome these limitations. Comparative evaluation of these kits is important for selecting the appropriate protocol. We compared the three kits in a realistic differential expression analysis. We prepared and sequenced samples from two experimental conditions of biological interest with each of the three kits. We report differences between the kits at the level of differential gene expression; for example, the Pico kit results in 55% fewer differentially expressed genes than TruSeq. Nevertheless, the agreement of the observed enriched pathways suggests that comparable functional results can be obtained. In summary we conclude that the Pico kit sufficiently reproduces the results of the other kits at the level of pathway analysis while providing a combination of options that is not available in the other kits.

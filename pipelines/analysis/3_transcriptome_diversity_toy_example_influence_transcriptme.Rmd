@@ -1,0 +1,111 @@
+
+---
+title: "Simple explanation of how transcritpome diversity can impact the transcriptome"
+output:
+    html_document:
+        fig_width: 6 
+        fig_height: 2 
+        fig_crop: no
+        toc: true
+        toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+library('dplyr')
+library('ggplot2')
+source('../../R/ggthemes.R')
+
+color_high <- '#d4ac0d'
+color_low <- '#5d6d7e'
+```
+
+```{r source}
+build_fractions <- function(n_total, n_top, frac) {
+    
+    # Arbitrary coverage
+    coverage <- n_total * 100
+    coverage_top <- round(frac*coverage)
+    coverage_rest <- coverage - coverage_top
+    
+    # Get counts 
+    counts_top <- rpois(n_top, round(coverage_top/n_top))
+    counts_rest <- rpois(n_total-n_top, round(coverage_rest/(n_total-n_top)))
+    
+    #results <- data.frame(gene=1:n_total, counts=sort(c(counts_top, counts_rest), decreasing=T))
+    results <- data.frame(Gene=1:n_total, counts=c(counts_top, counts_rest), decreasing=T)
+    results$prob <- results$counts/sum(results$counts)
+    results$type <- c(rep('Highly expressed', n_top), rep('Normally expressed', n_total-n_top))
+    return(results)
+    
+}
+```
+
+# Introduction
+
+```{r}
+exp_dat <- build_fractions(100, 50, .5) 
+```
+
+```{r plot_hist_normal}
+ggplot(exp_dat, aes(x=Gene, y=counts)) +
+    geom_bar(stat='identity', colour='black', fill=color_low, size=0.3) +
+    ylab('Read counts') +
+    theme_noGrid() +
+    theme(legend.position='none')
+```
+
+```{r}
+exp_dat <- build_fractions(100, 5, .7) 
+```
+
+```{r plot_hist}
+ggplot(exp_dat, aes(x=Gene, y=counts)) +
+    geom_bar(aes(fill=type), stat='identity', colour='black', size=0.3) +
+    scale_fill_manual(values=c(color_high, color_low)) +
+    ylab('Read counts') +
+    theme_noGrid() +
+    theme(legend.position='none')
+```
+
+```{r}
+exp_dat <- build_fractions(100, 10, .7) 
+```
+
+```{r ref.label='plot_hist'}
+```
+
+```{r}
+exp_dat <- build_fractions(100, 20, .7) 
+```
+
+```{r ref.label='plot_hist'}
+```
+
+```{r}
+exp_dat <- build_fractions(100, 40, .7) 
+```
+
+```{r ref.label='plot_hist'}
+```
+
+```{r}
+exp_dat <- build_fractions(100, 60, .7) 
+```
+
+```{r ref.label='plot_hist'}
+```
+
+
+```{r}
+exp_dat <- build_fractions(100, 10, .15) 
+```
+
+```{r ref.label='plot_hist'}
+```
+
+
+
+
+
+

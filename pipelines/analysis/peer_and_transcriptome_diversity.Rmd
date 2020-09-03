@@ -1,0 +1,129 @@
+
+---
+title: "Associations between PEER features and transcriptome variability"
+output:
+    html_document:
+        fig_crop: no
+        toc: true
+        toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+options(digits=4)
+```
+
+```{r libraries}
+source('../../R/ggthemes.R', chdir=T)
+source('../../R/gtex.R', chdir=T)
+source('../../R/misc.R', chdir=T)
+#source('../../R/GWAS.R', chdir=T)
+#source('../../R/idConverter.R', chdir=T)
+source('../../R/plots.R', chdir=T)
+#source('../../R/misc.R', chdir=T)
+library('readr')
+library('ggplot2')
+library('purrr')
+library('dplyr')
+library('tidyr')
+library('kableExtra')
+library('broom')
+library('forcats')
+#library('broom')
+library('stringr')
+library('patchwork')
+```
+
+```{r opts}
+
+# Colour of points and bars
+FILL_COL3 <- 'darkslategray'
+FILL_COL2 <- 'cadetblue4'
+FILL_COL1 <- 'cadetblue2'
+
+# Colour for del/amp/totaa
+FILL_COL_AMP <- 'forestgreen'
+FILL_COL_DEL <- 'coral'
+FILL_COL_TOTAL <- 'dodgerblue3'
+
+
+# Files
+transcriptome_diversity_file <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity/transcriptome_diversity_all_tissues.txt'
+cor_results_dir <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity/peer_associated_with_transcriptome_diversity/'
+
+lm_resutls_dir <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity/variance_explained_by_PEER/'
+
+```
+
+# Correlations summary 
+
+```{r results='hide', message=F, warning=F}
+cor_results_files <- list.files(cor_results_dir, pattern='significant_cors.txt', full.names=T, recursive=T)
+id_names <- basename(dirname(cor_results_files))
+peer_cors <- concatenate_table_files2(cor_results_files, id_names=id_names)
+
+cor_stats_files <- list.files(cor_results_dir, pattern='stats.txt', full.names=T, recursive=T)
+id_names <- basename(dirname(cor_stats_files))
+peer_cors_stats <- concatenate_table_files2(cor_stats_files, id_names=id_names)
+peer_cors_stats <- mutate(peer_cors_stats, signif(cor_with_transcriptome_diversity_peer/total_peer, 3) * 100)
+```
+
+Number of covariates associated to trasncriptome diversity
+```{r}
+peer_cors_stats %>%
+    kable() %>%
+    kable_styling()
+```
+
+Pearson correlation of top associations per tissue
+```{r plot_cors, fig.height=12}
+toPlot <- peer_cors %>%
+    group_by(id_names) %>%
+    arrange(desc(abs(pearson_cor))) %>%
+    filter(row_number()==1) %>%
+    ungroup() %>% 
+    arrange(pearson_cor) %>%
+    mutate(id_names=factor(id_names, levels=id_names,ordered=T))
+
+ggplot(toPlot, aes(y=id_names, x=pearson_cor)) +
+    geom_bar(stat='identity') +
+    theme_grid_x()
+```
+
+
+
+# Linear regression on transcriptome variability using PEER covariates
+
+Read results
+```{r results='hide', warning=F, message=F}
+lm_results_files <- list.files(lm_resutls_dir, full.names=T)
+id_names <- str_replace(basename(lm_results_files), '.txt', '')
+lm_results <- concatenate_table_files2(lm_results_files, id_names=id_names)
+
+lm_results <- lm_resutls %>%
+    group_by(id_names) %>%
+    mutate(p.value_bonferroni = p.adjust(p.value)) %>%
+    ungroup()
+```
+
+Plot variance explained across tissues
+
+```{r plot_var_explained, fig.height=12}
+toPlot <- lm_results %>%
+    group_by(id_names) %>%
+    summarise(n_peer = sum(p.value_bonferroni < 0.05), total_peer= n(), total_var_explained=model_r_squared[1]) %>%
+    ungroup() %>%
+    mutate(id_names = factor(id_names, levels=id_names[order(total_var_explained)], ordered=T),
+           dummy='a', text_peer = paste(n_peer, '/', total_peer))
+
+p_var_explained <- ggplot(toPlot, aes(y=id_names, x=total_var_explained)) +
+    geom_bar(stat='identity', fill='grey80', colour='grey20') +
+    theme_grid_x()
+
+p_n_peer <- ggplot(toPlot, aes(y=id_names, x=dummy)) +
+    geom_text(aes(label=text_peer)) +
+    theme_fullBlank()
+
+p_var_explained + p_n_peer + plot_layout(desig='AAAAAB')
+```
+

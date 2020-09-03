@@ -1,0 +1,229 @@
+
+---
+title: "Associations between metadata features and genomic instability scores"
+output:
+    html_document:
+        fig_crop: no
+        toc: true
+        toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+options(digits=18)
+```
+
+```{r libraries}
+source('../../R/ggthemes.R', chdir=T)
+source('../../R/gtex.R', chdir=T)
+source('../../R/misc.R', chdir=T)
+#source('../../R/GWAS.R', chdir=T)
+#source('../../R/idConverter.R', chdir=T)
+source('../../R/plots.R', chdir=T)
+#source('../../R/misc.R', chdir=T)
+library('readr')
+library('ggplot2')
+library('purrr')
+library('dplyr')
+library('tidyr')
+library('kableExtra')
+library('broom')
+library('forcats')
+#library('broom')
+#library('stringr')
+
+```
+
+```{r opts}
+
+cor_test <- function(..., val) {
+    
+    tryCatch(cor.test(...)[[val]], error = function(e) NA)
+    
+}
+
+# Colour of points and bars
+FILL_COL3 <- 'darkslategray'
+FILL_COL2 <- 'cadetblue4'
+FILL_COL1 <- 'cadetblue2'
+
+# Colour for del/amp/totaa
+FILL_COL_AMP <- 'forestgreen'
+FILL_COL_DEL <- 'coral'
+FILL_COL_TOTAL <- 'dodgerblue3'
+
+
+# Files
+transcriptome_diversity_file <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity/transcriptome_diversity_all_tissues.txt'
+sample_metadata_file <- file.path(GTEX_CON$root, GTEX_CON$sampleMetadataGTEXV8)
+```
+
+# Metadata associations with genomic instability
+
+Read genomic instability values, normalized exon junctions and Covariates
+
+```{r read_transcriptome_diversity}
+transcriptome_diversity <- read_tsv(transcriptome_diversity_file)
+transcriptome_diversity <- transcriptome_diversity %>% 
+    mutate(ind = gtexLongToShort(gtexId)) %>%
+    group_by(id_names) %>%
+    mutate(transcriptome_diversity_rankit=rankitNormalize_vector(transcriptome_diversity)) %>%
+    ungroup()
+```
+
+Read metadata
+```{r read_metadata}
+vars_sample_anno <- c('SMMPPDUN', 'SMTSISCH', 'SMRIN')
+sample_metadata <- readSampleAnnotationGTEX(columns=vars_sample_anno, location=sample_metadata_file)
+sample_metadata$gtexId <- rownames(sample_metadata)
+sample_metadata <- left_join(select(transcriptome_diversity, id_names, gtexId), sample_metadata) %>%
+    pivot_longer(vars_sample_anno, names_to='feature', values_to='val') %>%
+    group_by(id_names, feature) %>%
+    mutate(val=rankitNormalize_vector(val)) %>%
+    pivot_wider(names_from='feature', values_from='val')
+```
+
+Plot 
+```{r}
+aaa <- transcriptome_diversity
+bbb <- pivot_longer(sample_metadata, vars_sample_anno, names_to='feature', values_to='feature_value')
+```
+
+```{r get_cors, fig.height=10}
+merged <- left_join(aaa,bbb)
+
+cors <- merged %>%
+    group_by(id_names, feature) %>%
+    summarise(pearson_cor = cor_test(transcriptome_diversity, feature_value, val='estimate'),
+              pvalue = cor_test(transcriptome_diversity, feature_value, val='p.value'),
+              signed_pvalue = sign(pearson_cor) * -log10(pvalue)) %>%
+    ungroup() %>%
+    filter(!is.na(pearson_cor)) %>%
+    arrange(signed_pvalue)
+```
+
+```{r plot_sample_metadata, fig.height=10}
+zzz <- cors %>%
+    filter(feature == 'SMMPPDUN') %>%
+    arrange(-signed_pvalue)
+
+toPlot <- cors %>%
+    mutate(id_names=factor(id_names, levels=zzz$id_names))
+
+ggplot(toPlot, aes(x=signed_pvalue, y=id_names)) +
+    geom_vline(xintercept=0, linetype='dashed', col = 'gray20') +
+    geom_vline(xintercept=2, linetype='dotted', col = 'gray60') +
+    geom_vline(xintercept=-2, linetype='dotted', col = 'gray60') +
+    geom_point() +
+    facet_wrap(feature~., ncol=4) +
+    theme_bw()
+```
+
+## Associations with biological variables after controlling for technical variables
+
+Controlling for technical variables unsing a linear regression
+```{r}
+transcriptome_diversity <- left_join(transcriptome_diversity,sample_metadata) %>%
+    group_by(id_names) %>%
+    nest() %>%
+    mutate(transcriptome_diversity_tech_controlled = map(data, function(x) resid(lm(as.formula(paste('transcriptome_diversity_rankit ~', paste(vars_sample_anno, collapse='+'))), 
+                                                                                    data=x, na.action=na.exclude)))) %>%
+    unnest(c(data, transcriptome_diversity_tech_controlled)) %>%
+    ungroup()
+```
+
+```{r read_ind_meta}
+vars_meta <- c('AGE', 'GENDER', 'RACE', 'BMI')
+ind_meta <- readMetadataGTEX(vars_meta)
+ind_meta$ind <- rownames(ind_meta)
+PCs <-as.data.frame(t(readGenotypePCA()[1:3,]))
+PCs$ind <-rownames(PCs)
+
+ind_meta <- full_join(ind_meta, PCs)
+```
+
+
+Plot 
+```{r}
+aaa <- select(transcriptome_diversity, id_names, ind, transcriptome_diversity_tech_controlled)
+bbb <- pivot_longer(ind_meta, -ind, names_to='feature', values_to='feature_value')
+```
+
+```{r plot_sample_metadata_biological, fig.height=20}
+merged <- left_join(aaa,bbb)
+merged <- filter(merged, !is.na(feature))
+
+cors <- merged %>%
+    group_by(id_names, feature) %>%
+    mutate(feature_value_rankit=rankitNormalize_vector(feature_value)) %>%
+    summarise(pearson_cor = cor_test(transcriptome_diversity_tech_controlled, feature_value_rankit, val='estimate'),
+              pvalue = cor_test(transcriptome_diversity_tech_controlled, feature_value_rankit, val='p.value'),
+              signed_pvalue = sign(pearson_cor) * -log10(pvalue)) %>%
+    ungroup() %>%
+    filter(!is.na(pearson_cor)) %>%
+    arrange(signed_pvalue)
+
+zzz <- cors %>%
+    filter(feature == 'AGE') %>%
+    arrange(-signed_pvalue)
+
+toPlot <- cors %>%
+    mutate(id_names=factor(id_names, levels=zzz$id_names))
+
+ggplot(toPlot, aes(x=signed_pvalue, y=id_names)) +
+    geom_vline(xintercept=0, linetype='dashed', col = 'gray20') +
+    geom_vline(xintercept=2, linetype='dotted', col = 'gray60') +
+    geom_vline(xintercept=-2, linetype='dotted', col = 'gray60') +
+    geom_point() +
+    facet_wrap(feature~., ncol=4) +
+    theme_bw()
+```
+
+# Associations with peer Covariates
+
+```{r}
+tissue <-'Whole_Blood'
+```
+
+```{r read_PEER}
+peer <- readPEERCovariates(tissue, file.path(GTEX_CON$root, GTEX_CON$gtexPeerV8Dir))
+peer$ind <- rownames(peer)
+```
+
+```{r}
+aaa <- select(transcriptome_diversity, id_names, ind, transcriptome_diversity) %>%
+    filter(id_names == tissue)
+bbb <- pivot_longer(peer, -ind, names_to='feature', values_to='feature_value')
+```
+
+```{r ref.label='get_cors', fig.height=10}
+merged <- left_join(aaa,bbb)
+
+cors <- merged %>%
+    group_by(id_names, feature) %>%
+    summarise(pearson_cor = cor_test(transcriptome_diversity, feature_value, val='estimate'),
+              pvalue = cor_test(transcriptome_diversity, feature_value, val='p.value'),
+              signed_pvalue = sign(pearson_cor) * -log10(pvalue)) %>%
+    ungroup() %>%
+    filter(!is.na(pearson_cor)) %>%
+    arrange(signed_pvalue)
+```
+
+```{r ref.label='plot_sample_metadata', fig.height=10}
+```
+
+```{r plot_peer, fig.height=10}
+zzz <- cors %>%
+    arrange(-signed_pvalue)
+
+toPlot <- cors %>%
+    mutate(feature=factor(feature, levels=zzz$feature))
+
+ggplot(toPlot, aes(x=signed_pvalue, y=feature)) +
+    geom_vline(xintercept=0, linetype='dashed', col = 'gray20') +
+    geom_vline(xintercept=2, linetype='dotted', col = 'gray60') +
+    geom_vline(xintercept=-2, linetype='dotted', col = 'gray60') +
+    geom_point() +
+    ggtitle(tissue) +
+    theme_bw()
+```

@@ -1,0 +1,158 @@
+
+---
+title: "Analysis on one eQTL"
+output:
+    html_document:
+        fig_crop: no
+        toc: true
+        toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+options(digits=18)
+```
+
+```{r libraries}
+source('../../R/ggthemes.R', chdir=T)
+source('../../R/gtex.R', chdir=T)
+source('../../R/misc.R', chdir=T)
+source('../../R/GWAS.R', chdir=T)
+#source('../../R/idConverter.R', chdir=T)
+source('../../R/plots.R', chdir=T)
+library('readr')
+library('ggplot2')
+#library('purrr')
+library('dplyr')
+library('tidyr')
+library('kableExtra')
+library('patchwork')
+#library('broom')
+#library('forcats')
+#library('broom')
+library('stringr')
+
+```
+
+```{r opts}
+
+# Colour of points and bars
+FILL_COL3 <- 'darkslategray'
+FILL_COL2 <- 'cadetblue4'
+FILL_COL1 <- 'cadetblue2'
+
+# Colour for del/amp/totaa
+FILL_COL4 <- 'forestgreen'
+FILL_COL5 <- 'coral'
+FILL_COL6 <- 'dodgerblue3'
+
+
+# Files
+eqtl_trans_folder <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity/eqtls_covariate/'
+eqtl_no_trans_folder <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity/eqtls_no_covariate'
+
+bed_phenotype_file <- '/scratch/users/paedugar/cnv_gtex_project/auxiliary_files/GTEx_Analysis_v8_eQTL_expression_matrices/Whole_Blood.v8.normalized_expression.bed.gz'
+covariate_file <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity/transcriptome_diversity_as_covariates/Whole_Blood.txt'
+covariate_long_file <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity/transcriptome_diversity_all/Whole_Blood.txt'
+covariate_long_old_file <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity/transcriptome_diversity/Whole_Blood.txt'
+genotype_file <- '/scratch/PI/hbfraser/gtex/raw/Genotype/phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.vcf.gz'
+tpm_file <- '/scratch/users/paedugar/cnv_gtex_project/auxiliary_files/GTE'
+exp_mat_file <- '/scratch/users/paedugar/cnv_gtex_project/auxiliary_files/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_tpm.gct'
+```
+
+```{r ref.label='source'}
+```
+
+
+# Goal
+This analysis aims to compare one eqtl hit of two analyses (one performed with transcriptome diversity as covariates)
+
+
+# Results
+
+Load the data
+```{r load_data, results='hide'}
+# eqtl results using transcriptome diversity as covariate
+eqtl_trans <- read_eqtl(eqtl_trans_folder, 'transcriptome_diversity_as_covariates')
+eqtl_no_trans <- read_eqtl(eqtl_no_trans_folder, 'no_covariates')
+
+eqtl_results <- bind_rows(eqtl_trans, eqtl_no_trans)
+colnames(eqtl_results)[1:10] <- c('gene_id', 'variants_tested', 'MLE_1_beta_shape', 'MLE_2_beta_shape', 'dummy', 'variant_id', 'ditance_to_tss', 'nominal_pvalue', 'permutation1_pvalue', 'permutation_pvalue')
+
+
+eqtl_results <- eqtl_results %>%
+    group_by(group) %>%
+    mutate(fdr=p.adjust(permutation_pvalue, method='BH')) %>%
+    ungroup()
+```
+
+Select snp and gene
+```{r}
+eqtl_results <- arrange(eqtl_results, permutation_pvalue)
+snp <- eqtl_results$variant_id[1]
+gene <- eqtl_results$gene_id[1]
+gene <- 'ENSG00000166435' # A gene that has the top eqtl and its expression in tpm is correlated with transcriptome diversity
+gene <- 'ENSG00000244734' # A gene whose normalized (gtex normalization) expression is  correlated with transcriptome diversity
+```
+
+Reads expression and covariates
+
+```{r}
+exp_values <- read_file_grep(gene, bed_phenotype_file)
+tpm <- read_file_grep(gene, exp_mat_file, skip=2)
+tpm <- pivot_longer(tpm, starts_with('GTEX'), names_to='sample_id', values_to='tpm')
+
+covariates <- read_tsv(covariate_file)
+new <- read_tsv(covariate_long_file) %>%
+    mutate(gtexId=gtexLongToShort(sample_id)) %>%
+    left_join(tpm)
+```
+
+Sanity check to see if they are correlated
+```{r}
+covariates_long <- pivot_longer(covariates, starts_with('GTEX'), names_to='gtexId', values_to='transcriptome_diversity')
+exp_values_long <- pivot_longer(exp_values, starts_with('GTEX'), names_to='gtexId', values_to='expression') %>%
+    left_join(covariates_long) %>%
+    left_join(dplyr::rename(new, transcriptome_diversity_new='transcriptome_diversity'))
+
+
+cor(exp_values_long$expression, exp_values_long$transcriptome_diversity, method='spearman')
+cor(exp_values_long$tpm, exp_values_long$transcriptome_diversity, method='spearman')
+cor(exp_values_long$expression, exp_values_long$tpm, method='spearman')
+cor(exp_values_long$transcriptome_diversity_new, exp_values_long$transcriptome_diversity)
+```
+
+
+
+
+
+
+```{r source}
+read_eqtl <- function(eqtl_dir, group) {
+    
+    cor_files <- list.files(eqtl_dir, full.names=T, recursive=T, pattern='txt.gz$')
+    cor_ids <- str_split_fixed(basename(cor_files), '\\.', n=2)[,1]
+    cors <- concatenate_table_files2(cor_files, id_names=cor_ids, delim=' ', header=F, read_function=read_delim, progress=F)
+    cors$group <- group
+    
+    return(cors)
+}
+
+read_file_grep <- function(x, target_file, skip=0) {
+    
+    
+    # Read header 
+    target_file_con <- gzfile(target_file)
+    exp_header <- readLines(target_file_con, n=skip+1)[skip+1]
+    close(target_file_con)
+    
+    cmd_grep <- paste('zgrep', x, target_file)
+    exp_gene <- paste(system(cmd_grep, intern=T), collapse='\n')
+    exp_values <- read_tsv(paste0(exp_header, '\n', exp_gene))
+    
+    return(exp_values)
+    
+}
+
+```
+

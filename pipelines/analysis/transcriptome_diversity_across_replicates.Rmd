@@ -1,0 +1,250 @@
+
+---
+title: "Replication of transcriptome diversity using drosophila data from Lin et al."
+output:
+    html_document:
+        fig_crop: no
+        toc: true
+        toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+#options(digits=18)
+```
+
+```{r libraries}
+source('../../R/ggthemes.R', chdir=T)
+source('../../R/gtex.R', chdir=T)
+source('../../R/misc.R', chdir=T)
+#source('../../R/GWAS.R', chdir=T)
+#source('../../R/idConverter.R', chdir=T)
+source('../../R/plots.R', chdir=T)
+#source('../../R/misc.R', chdir=T)
+library('readr')
+library('GGally')
+library('ggplot2')
+library('purrr')
+library('dplyr')
+library('tidyr')
+library('kableExtra')
+library('broom')
+library('forcats')
+library('broom')
+#library('stringr')
+
+```
+
+```{r opts}
+
+cor_test <- function(..., val) {
+    
+    tryCatch(cor.test(...)[[val]], error = function(e) NA)
+    
+}
+
+# Colour of points and bars
+FILL_COL3 <- 'darkslategray'
+FILL_COL2 <- 'cadetblue4'
+FILL_COL1 <- 'cadetblue2'
+
+# Colour for del/amp/totaa
+FILL_COL_AMP <- 'forestgreen'
+FILL_COL_DEL <- 'coral'
+FILL_COL_TOTAL <- 'dodgerblue3'
+
+
+# Files
+transcriptome_diversity_file <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity_other_datasets/transcriptome_diversity/lin_tpm.txt'
+transcriptome_diversity_file_tmm <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity_other_datasets/transcriptome_diversity/lin_tmm.txt'
+sample_metadata_file <- '/scratch/users/paedugar/cnv_gtex_project/expression_matrices/lin_covariates.txt'
+```
+
+# Metadata associations with genomic instability
+
+Read genomic instability values, normalized exon junctions and Covariates
+
+```{r read_transcriptome_diversity}
+transcriptome_diversity_tpm <- read_tsv(transcriptome_diversity_file)
+transcriptome_diversity_tpm$normalization <- 'tpm'
+
+transcriptome_diversity_tmm <- read_tsv(transcriptome_diversity_file_tmm)
+transcriptome_diversity_tmm$normalization <- 'tmm'
+
+transcriptome_diversity <- transcriptome_diversity_tpm %>% 
+    bind_rows(transcriptome_diversity_tmm) %>%
+    group_by(normalization) %>%
+    mutate(transcriptome_diversity_rankit=rankitNormalize_vector(transcriptome_diversity)) %>%
+    ungroup()
+```
+
+Read metadata
+```{r read_metadata}
+sample_metadata <- read_tsv(sample_metadata_file) %>%
+    pivot_longer(-ID, names_to='sample_id', values_to='metadata_value') %>%
+    pivot_wider(names_from=ID, values_from=metadata_value) %>%
+    mutate(mapped_reads=log10(as.double(mapped_reads)))
+
+transcriptome_diversity <- left_join(transcriptome_diversity, sample_metadata)
+```
+
+Plot all pairwise assocaitions
+```{r fig.width=10, fig.height=10}
+#ggpairs(dplyr::filter(transcriptome_diversity, normalization=='tpm'), columns=3:ncol(transcriptome_diversity), cardinality_threshold=16)
+```
+
+Plot strain effects
+```{r fig.width=11, fig.height=4}
+ggplot(transcriptome_diversity, aes(x=DGRP_Number, y=transcriptome_diversity)) +
+    geom_violin(fill=FILL_COL2) +
+    geom_jitter(colour='black', size=0.8, alpha=0.6) +
+    facet_grid(.~normalization) +
+    theme_grid_y() +
+    theme(axis.text.x=element_text(angle=30, hjust=1))
+```
+
+Plot strain environment effects
+```{r fig.width=10, fig.height=7}
+ggplot(transcriptome_diversity, aes(x=transcriptome_diversity)) +
+    geom_histogram(fill=FILL_COL2, colour='black') +
+    facet_grid(Environment~normalization) +
+    theme_grid_y()
+
+```
+
+Plot fly number effects
+```{r}
+ggplot(transcriptome_diversity, aes(x=transcriptome_diversity)) +
+    geom_histogram(fill=FILL_COL2, colour='black') +
+    facet_grid(Fly_Number~normalization) +
+    theme_grid_y()
+```
+
+Plot sex effects
+```{r}
+ggplot(transcriptome_diversity, aes(x=transcriptome_diversity)) +
+    geom_histogram(fill=FILL_COL2, colour='black') +
+    facet_grid(Sex~normalization) +
+    theme_grid_y()
+
+```
+
+Plot read depth
+```{r fig.width=7, fig.height=4}
+ggplot(transcriptome_diversity, aes(x=mapped_reads, y=transcriptome_diversity)) +
+    geom_point(alpha=0.4) +
+    facet_grid(~normalization) +
+    theme_grid_y()
+```
+
+# Modeling transcriptome diversity
+
+
+Genotype + environment + sex
+```{r}
+model_results <- transcriptome_diversity %>%
+    group_by(normalization) %>%
+    nest() %>%
+    mutate(lm_results=map(data, ~ lm(transcriptome_diversity_rankit ~ Environment + Sex + DGRP_Number, data=.x)),
+           r_2=map(lm_results, ~ paste0('   r^2 = ', signif(summary(.x)$r.squared), 2)),
+           lm_results=map(lm_results, tidy)) %>%
+    unnest(c(lm_results, r_2)) %>%
+    mutate(term=factor(term, levels=term, ordered=T)) %>%
+    ungroup() 
+```
+
+Plot
+```{r  fig.width=10, fig.height=6}
+ggplot(model_results, aes(x=term, y=-log10(p.value))) +
+    geom_bar(stat='identity', fill=FILL_COL2, colour='black') +
+    geom_text(aes(label=r_2), x=-Inf, y=Inf, data=unique(model_results[,c('normalization', 'r_2')]), vjust=1, hjust=0) +
+    facet_grid(normalization~.) +
+    theme_grid_y() +
+    theme(axis.text.x=element_text(angle=30, hjust=1))
+```
+
+
+Environment + sex
+```{r}
+model_results <- transcriptome_diversity %>%
+    group_by(normalization) %>%
+    nest() %>%
+    mutate(lm_results=map(data, ~ lm(transcriptome_diversity_rankit ~ Environment + Sex, data=.x)),
+           r_2=map(lm_results, ~ paste0('   r^2 = ', signif(summary(.x)$r.squared), 2)),
+           lm_results=map(lm_results, tidy)) %>%
+    unnest(c(lm_results, r_2)) %>%
+    mutate(term=factor(term, levels=term, ordered=T)) %>%
+    ungroup() 
+```
+
+Plot
+```{r  fig.width=6, fig.height=6}
+ggplot(model_results, aes(x=term, y=-log10(p.value))) +
+    geom_bar(stat='identity', fill=FILL_COL2, colour='black') +
+    geom_text(aes(label=r_2), x=-Inf, y=Inf, data=unique(model_results[,c('normalization', 'r_2')]), vjust=1, hjust=0) +
+    facet_grid(normalization~.) +
+    theme_grid_y() +
+    theme(axis.text.x=element_text(angle=30, hjust=1))
+```
+
+Sex + Genotype x Environment
+
+```{r}
+model_results <- transcriptome_diversity %>%
+    group_by(normalization) %>%
+    nest() %>%
+    mutate(lm_results=map(data, ~ lm(transcriptome_diversity_rankit ~  Sex + Environment*DGRP_Number, data=.x)),
+           r_2=map(lm_results, ~ paste0('   r^2 = ', signif(summary(.x)$r.squared), 2)),
+           lm_results=map(lm_results, tidy)) %>%
+    unnest(c(lm_results, r_2)) %>%
+    mutate(term=factor(term, levels=term, ordered=T)) %>%
+    ungroup() 
+```
+
+Plot
+```{r  fig.width=12, fig.height=6}
+ggplot(model_results, aes(x=term, y=-log10(p.value))) +
+    geom_bar(stat='identity', fill=FILL_COL2, colour='black') +
+    geom_text(aes(label=r_2), x=-Inf, y=Inf, data=unique(model_results[,c('normalization', 'r_2')]), vjust=1, hjust=0) +
+    facet_grid(normalization~.) +
+    theme_grid_y() +
+    theme(axis.text.x=element_text(angle=30, hjust=1, size=5))
+```
+
+Sex x Genotype x Environment
+
+```{r}
+model_results <- transcriptome_diversity %>%
+    group_by(normalization) %>%
+    nest() %>%
+    mutate(lm_results=map(data, ~ lm(transcriptome_diversity_rankit ~  Sex*Environment*DGRP_Number, data=.x)),
+           r_2=map(lm_results, ~ paste0('   r^2 = ', signif(summary(.x)$r.squared), 2)),
+           lm_results=map(lm_results, tidy)) %>%
+    unnest(c(lm_results, r_2)) %>%
+    mutate(term=factor(term, levels=term, ordered=T)) %>%
+    ungroup() 
+```
+
+Plot
+```{r fig.width=14, fig.height=6}
+ggplot(model_results, aes(x=term, y=-log10(p.value))) +
+    geom_bar(stat='identity', fill=FILL_COL2, colour='black') +
+    geom_text(aes(label=r_2), x=-Inf, y=Inf, data=unique(model_results[,c('normalization', 'r_2')]), vjust=1, hjust=0) +
+    facet_grid(normalization~.) +
+    theme_grid_y() +
+    theme(axis.text.x=element_text(angle=30, hjust=1, size=4))
+```
+
+
+Visualize effects on transcriptome diversity of sex, Genotype, and environment
+```{r  fig.width=9, fig.height=6}
+ggplot(dplyr::filter(transcriptome_diversity, normalization=='tmm'), aes(x=Environment, y=transcriptome_diversity_rankit)) +
+    geom_violin(fill='grey80') +
+    geom_jitter(aes(colour=Sex), width=0.2) +
+    facet_wrap(~DGRP_Number, nrow=2) +
+    scale_fill_manual(values=c('grey40', 'grey60', 'grey80')) +
+    scale_colour_manual(values=c(FILL_COL_AMP, FILL_COL_DEL)) +
+    theme_grid_y()
+```
+
+

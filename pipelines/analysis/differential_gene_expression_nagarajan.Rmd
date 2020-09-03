@@ -1,0 +1,184 @@
+
+---
+title: "Influence of transcriptome diversity on differential gene expression analysis (nagarajan et al.)"
+output:
+    html_document:
+        fig_crop: no
+        fig_width: 9
+        fig_height: 4
+        toc: true
+        toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+#options(digits=18)
+```
+
+```{r libraries}
+source('../../R/ggthemes.R', chdir=T)
+#source('../../R/gtex.R', chdir=T)
+#source('../../R/GWAS.R', chdir=T)
+#source('../../R/idConverter.R', chdir=T)
+#source('../../R/plots.R', chdir=T)
+#source('../../R/misc.R', chdir=T)
+library('readr')
+library('edgeR')
+library('GGally')
+library('ggplot2')
+#library('purrr')
+library('dplyr')
+library('tidyr')
+#library('kableExtra')
+#library('broom')
+#library('forcats')
+library('stringr')
+```
+
+```{r opts}
+
+cor_test <- function(..., val) {
+    
+    tryCatch(cor.test(...)[[val]], error = function(e) NA)
+    
+}
+
+# Colour of points and bars
+FILL_COL3 <- 'darkslategray'
+FILL_COL2 <- 'cadetblue4'
+FILL_COL1 <- 'cadetblue2'
+
+# Colour for del/amp/totaa
+FILL_COL_AMP <- 'forestgreen'
+FILL_COL_DEL <- 'coral'
+FILL_COL_TOTAL <- 'dodgerblue3'
+
+
+# Files
+differential_dir <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity_other_datasets/differential_gene_expression/nagarajan/'
+```
+
+Read files 
+
+```{r}
+all_files <- list.files(differential_dir, full.names=T)
+
+differential <- list()
+for(i in list.files(differential_dir, full.names=T)){
+    
+    c_name <- basename(i) %>%
+        str_remove( '.Rds') %>%
+        str_remove('edgeR_results_')
+    
+    differential[[c_name]] <- readRDS(i)
+}
+```
+
+
+## Influence of transcriptome diversity on WT vs arid1a
+
+```{r}
+edgeR <- differential$genotype
+```
+
+Build table of differential gene expression
+
+```{r make_table}
+final_table <- as_tibble(edgeR[[1]]$differential_genes$table)
+for (i in 2:length(edgeR)) {
+   
+    c_table <- tibble(a=edgeR[[i]]$differential_genes$table$PValue)
+    colnames(c_table) <- paste0('PValue_', names(edgeR)[i])
+    final_table <- bind_cols(final_table, c_table)
+    
+}
+
+final_table <- final_table %>%
+    pivot_longer(starts_with('PValue_'), names_to='type', values_to='PValue_cov') %>%
+    mutate(PValue=-log10(PValue), PValue_cov=-log10(PValue_cov), is_1.2_order_magnitude=ifelse(PValue_cov-PValue > 1.2, 'bigger', ifelse(PValue_cov-PValue < -1.2, 'smaller', 'no')))
+
+n_points <- final_table %>%
+    group_by(type) %>%
+    summarise(total_bigger=sum(is_1.2_order_magnitude=='bigger'),
+              total_smaller=sum(is_1.2_order_magnitude=='smaller')) %>%
+    mutate(label_bigger=paste0('n = ', total_bigger), x=-Inf, y=Inf) %>%
+    mutate(label_smaller=paste0('\nn = ', total_smaller), x=-Inf, y=Inf) %>%
+    ungroup()
+```
+
+
+Plot
+
+```{r plot}
+ggplot(final_table, aes(x=PValue, y=PValue_cov)) +
+    geom_point(aes(colour=is_1.2_order_magnitude), alpha=0.3, size=0.5) +
+    scale_colour_manual(values=c('blue', 'black', 'yellow4')) +
+    geom_abline(color='coral3', slope=1, intercept=0) +
+    geom_text(aes(x=x, y=y, label=label_bigger), data=n_points, hjust=-1, vjust=1, colour='blue2', fontface='bold') +
+    geom_text(aes(x=x, y=y, label=label_smaller), data=n_points, hjust=-1, vjust=1, colour='yellow4', fontface='bold') +
+    #geom_abline(color=FILL_COL_DEL, slope=1, intercept=-1, linetype='dashed') +
+    #geom_abline(color=FILL_COL_DEL, slope=1, intercept=1, linetype='dashed') +
+    facet_grid(.~type) +
+    theme_noGrid() +
+    theme(legend.position='top')
+```
+
+
+
+## Influence of transcriptome diversity on jq1 treatment
+
+```{r}
+edgeR <- differential$jq1_wt
+```
+
+Build table of differential gene expression
+
+```{r ref.label='make_table'}
+```
+
+
+Plot
+
+```{r ref.label='plot'}
+```
+
+
+
+## Influence of transcriptome diversity on tamoxifen treatment
+
+```{r}
+edgeR <- differential$tamoxifen_wt
+```
+
+Build table of differential gene expression
+
+```{r ref.label='make_table'}
+```
+
+
+Plot
+
+```{r ref.label='plot'}
+```
+
+
+
+## Influence of transcriptome diversity on fulvestrant treatment
+
+```{r}
+edgeR <- differential$fulvestrant_wt
+```
+
+Build table of differential gene expression
+
+```{r ref.label='make_table'}
+```
+
+
+Plot
+
+```{r ref.label='plot'}
+```
+
+
+

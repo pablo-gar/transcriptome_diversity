@@ -1,0 +1,86 @@
+---
+title: "Peforms PCA on the Arora data, assesses whether controlling for transcriptome diversity results in better clustering"
+output:
+    html_document:
+        fig_witdh: 12
+        fig_height: 6
+        toc: true
+        toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+options(digits=4)
+```
+
+```{r libraries}
+source('../../R/ggthemes.R', chdir=T)
+source('../../R/misc.R', chdir=T)
+source('../../R/transcriptome_diversity_tools.R', chdir=T)
+#source('../../R/GWAS.R', chdir=T)
+#source('../../R/gtex.R', chdir=T)
+#source('../../R/idConverter.R', chdir=T)
+#source('../../R/plots.R', chdir=T)
+#source('../../R/misc.R', chdir=T)
+library('readr')
+library('dplyr')
+library('tidyr')
+library('ggplot2')
+library('purrr')
+library('kableExtra')
+library('patchwork')
+library('ggfortify')
+#library('broom')
+library('stringr')
+library('viridis')
+```
+
+```{r opts}
+
+TISSUE_COLORS <- c("#e937eb", "#ffda4a", "#ff19c4", "#76da99", "#ff61b9", "#28fdff", "#984000", "#0187ca", "#b1c25d", "#21002f", "#937c00", "#003566", "#001216", "#9b6375", "#b9d1ff", "#595b59")
+METHOD_COLORS <- c("#008638", "#c8069a", "#ff9d53", "#6693ff", "#00778f", "#595b59")
+
+# Files
+pca_dir <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity_other_datasets/PCA_arora/'
+```
+
+Read data
+```{r results='hide'}
+files <- list.files(pca_dir, full.names=T, pattern='.txt')
+
+pca_results <- concatenate_table_files2(files, header=T, id_names=basename(files), join_rows=T)
+```
+
+## GTEx
+```{r}
+group <- 'gtex'
+```
+
+Plot
+```{r plot}
+toPlot <- pca_results[pca_results$subgroup==group,] 
+
+p1 <- ggplot(toPlot, aes(x=PC1, y=PC2)) +
+    geom_point(aes(colour=tissue), alpha=0.7, size=1, shape=1) +
+    scale_colour_manual(values=TISSUE_COLORS) +
+    facet_wrap(count_type~pca_type, ncol=2, scales='free') +
+    theme_noGrid()
+
+p2 <- ggplot(toPlot, aes(x=PC1, y=PC2)) +
+    geom_point(aes(colour=method), alpha=0.7, size=1, shape=1) +
+    scale_colour_manual(values=METHOD_COLORS) +
+    facet_wrap(count_type~pca_type, ncol=2, scales='free') +
+    theme_noGrid()
+
+print(p1)
+print(p2)
+```
+
+## TCGA
+```{r}
+group <- 'TCGA'
+```
+
+Plot
+```{r ref.label="plot"}
+```
