@@ -24,8 +24,8 @@ main <- function(cmdArgs=commandArgs(T)) {
     ###################################
     # Options (loads options table for this study)
     dge_options <- build_comparison_table(outdir)
-    #covariate_types <- c('regular', 'transcriptome_diversity_tpm', 'transcriptome_diversity_tmm', 'transcriptome_diversity_tpm_scramble')
     covariate_types <- c('regular', 'transcriptome_diversity_tpm', 'transcriptome_diversity_tpm_scramble')
+    #covariate_types <- c('regular', 'transcriptome_diversity_tpm', 'transcriptome_diversity_tpm_scramble')
     
     ###################################
     # Read input files 

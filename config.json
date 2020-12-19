@@ -14,6 +14,7 @@
     "expression_associations_dir" : "expression_associations",
     "differential_expression_dir" : "differential_expression",
     "transcriptome_diversity_dir" : "transcriptome_diversity",
+    "PEER_dir" : "PEER_covariates",
     "eqtl_dir" : "eqtl_results",
     
     

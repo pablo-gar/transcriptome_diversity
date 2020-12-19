@@ -4,40 +4,38 @@ library('readr')
 library('dplyr')
 library('tidyr')
 library('broom')
-source('../../R/gtex.R', chdir=T)
-source('../../R/misc.R', chdir=T)
+source('../../R/transcriptome_diversity_tools.R', chdir=T)
 
 main <- function(cmdArgs=commandArgs(T)) {
     
     transcriptome_diversity_file <- cmdArgs[1]
-    tissue <- cmdArgs[2]
-    gtex_version <- cmdArgs[3]
-    out_file <- cmdArgs[4]
+    covariate_file <- cmdArgs[2]
+    out_file <- cmdArgs[3]
     
-    if(!gtex_version %in% c('v7', 'v8'))
-        stop('Gtex version has to be v7 or v8 ')
-    
-    #transcriptome_diversity_file <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity/transcriptome_diversity/Whole_Blood.txt'
-    #tissue <- 'Whole_Blood'
-    #gtex_version <- 'v8'
+    transcriptome_diversity_file <- '/scratch/users/paedugar/transcriptome_diversity/transcriptome_diversity/tpm/lin.txt'
+    covariate_file <- '/scratch/users/paedugar/transcriptome_diversity/PEER_covariates/lin.txt'
     
     # Read trasncriptome diversity
     transcriptome_diversity <- read_tsv(transcriptome_diversity_file)
     transcriptome_diversity <- transcriptome_diversity %>%
         mutate(transcriptome_diversity=rankitNormalize_vector(transcriptome_diversity),
-               ind=gtexLongToShort(gtexId)) %>%
-        select(-gtexId)
+               ind=sample_id) %>%
+        select(-sample_id)
     
     # Read PEER
-    if(gtex_version=='v8') {
-        peer <- readPEERCovariates(tissue, file.path(GTEX_CON$root, GTEX_CON$gtexPeerV8Dir))
-    } else {
-        peer <- readPEERCovariates(tissue)
-    }
+    peer <-  as.data.frame(t(read.table(covariate_file, sep='\t', stringsAsFactors=F, header=T, row.names=1, check.names=F)))
     
     peer <- as.data.frame(rankitNormalize(as.matrix(peer), 2))
     peer <- select(peer, starts_with('InferredCov'))
     peer$ind <- rownames(peer)
+    
+    # Correct for gtex singularity
+    if(any(grepl('GTEX', transcriptome_diversity$ind))) {
+        
+        if(all(!transcriptome_diversity$ind %in% peer$ind))
+            transcriptome_diversity$ind <- gtexLongToShort(ind)
+        
+    }
     
     # Merge
     merged <- inner_join(transcriptome_diversity, peer)
@@ -52,5 +50,11 @@ main <- function(cmdArgs=commandArgs(T)) {
 
     
 }
+
+# convert long gtex ids to short ones 
+gtexLongToShort <- function(x) {
+     gsub('(GTEX-\\w+?)-.+', '\\1', x)
+}
+
 
 main()

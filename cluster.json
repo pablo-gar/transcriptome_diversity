@@ -31,9 +31,21 @@
         "mem": "16G"
     },
     
-    "download_gtex":
+    "get_PEER":
     {
         "mem": "16G",
         "time": "4:00:00"
+    },
+    
+    "join_gtex_eqtl_results":
+    {
+        "mem": "32G",
+        "time": "24:00:00"
+    },
+    
+    "download_gtex_raw_counts":
+    {
+        "mem": "16G",
+        "time": "6:00:00"
     }
 }

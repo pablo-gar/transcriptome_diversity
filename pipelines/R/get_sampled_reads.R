@@ -1,4 +1,3 @@
-library("readr")
 source('../../R/transcriptome_diversity_tools.R')
 
 main <- function(cmdArgs=commandArgs(T)) {
@@ -7,14 +6,17 @@ main <- function(cmdArgs=commandArgs(T)) {
     n_reads <- as.numeric(cmdArgs[2])
     out_exp_mat <- cmdArgs[3]
     
+    #exp_mat_file <- 'lin_counts_small.txt'
+    #n_reads <- 5e6
+    
     # Read counts
-    exp_mat <- read_tsv(exp_mat_file)
+    exp_mat <- read_expression(exp_mat_file)
     
     # Sample
     exp_mat <- resize_expression(exp_mat, n=n_reads, method='montecarlo')
     
     #Read gene annotation for gene lengths
-    write_tsv(exp_mat, out_exp_mat)
+    write.table(exp_mat, out_exp_mat, sep='\t', quote=F, row.names=F, col.names=T)
     
     
 }

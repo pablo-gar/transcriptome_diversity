@@ -8,9 +8,11 @@ main <- function(cmdArgs=commandArgs(T)) {
     #anno_file <- '/scratch/users/paedugar/transcriptome_diversity/expression_datasets/gtex/GTEx_Analysis_v8_Annotations_SampleAttributesDS.txt'
     #out_dir <- '/scratch/users/paedugar/transcriptome_diversity/expression_matrices/'
     
+    cat("Read expression matrix\n")
     exp_mat <- read.table(gzfile(exp_mat_file), skip=2, header=T, sep='\t', stringsAsFactors=F, check.names=F)
     colnames(exp_mat)[1] <- 'gene_id'
     
+    cat("Read annotation file\n")
     anno <- read.delim(anno_file, sep='\t', stringsAsFactors=F, header=T)[,c(1,7)]
     anno[,2] <- code_friendly_tissues(anno[,2])
     

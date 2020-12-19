@@ -10,18 +10,26 @@ source('plot_opts.R') # Contains formating options for all plots
 # Args
 
 # Outputs
-plot_file_var_explained_prefix <- '../figures/1_lin_pcs_'
+plot_file_var_explained_prefix <- '../figures/figure_2_example/lin_pcs_'
+
+plot_file_PCs_tpm <- paste0(plot_file_var_explained_prefix, 'PC1_PC2_tpm.pdf')
+plot_file_PCs_tmm <- paste0(plot_file_var_explained_prefix, 'PC1_PC2_tmm.pdf')
+plot_file_var_explained_tpm <- paste0(plot_file_var_explained_prefix, 'var_explained_tpm.pdf')
+plot_file_var_explained_tmm <- paste0(plot_file_var_explained_prefix, 'var_explained_tmm.pdf')
+plot_file_cors_trans_tpm <- paste0(plot_file_var_explained_prefix, 'cor_trans_tpm.pdf')
+plot_file_cors_trans_tmm <- paste0(plot_file_var_explained_prefix, 'cor_trans_tmm.pdf')
+
 
 # Files
-covs_file <- '../data/lin_covariates.txt'
+covs_file <- '../data/lin/lin_covariates.txt'
 
-cors_tmm_file <- '../data/lin_tmm_pca/cors.txt'
-stats_tmm_file <- '../data/lin_tmm_pca/PC_stats.txt'
-pcs_tmm_file <- '../data/lin_tmm_pca/PC_matrix.txt'
+cors_tmm_file <- '../data/lin/lin_tmm_pca/cors.txt'
+stats_tmm_file <- '../data/lin/lin_tmm_pca/PC_stats.txt'
+pcs_tmm_file <- '../data/lin/lin_tmm_pca/PC_matrix.txt'
 
-cors_tpm_file <- '../data/lin_tpm_pca/cors.txt'
-stats_tpm_file <- '../data/lin_tpm_pca/PC_stats.txt'
-pcs_tpm_file <- '../data/lin_tpm_pca/PC_matrix.txt'
+cors_tpm_file <- '../data/lin/lin_tpm_pca/cors.txt'
+stats_tpm_file <- '../data/lin/lin_tpm_pca/PC_stats.txt'
+pcs_tpm_file <- '../data/lin/lin_tpm_pca/PC_matrix.txt'
 
 # PCs to plot for var explained plots
 pcs_to_plot <- 8
@@ -100,9 +108,9 @@ p_var_exp_tpm <- bar(pc_var_explained_cor_trans, 'TPM', 'var_explained', ylabel=
 p_cors_trans_tmm <- bar(pc_var_explained_cor_trans, 'TMM', 'pearson_cor', ylabel="Transcriptome\n diversity association\n|r|")
 p_var_exp_tmm <- bar(pc_var_explained_cor_trans, 'TMM', 'pearson_cor', ylabel='Variance\n explained (%)')
 
-ggsave(paste0(plot_file_var_explained_prefix, 'PC1_PC2_tpm.pdf'), p_tpm, height=3.2, width=3)
-ggsave(paste0(plot_file_var_explained_prefix, 'PC1_PC2_tmm.pdf'), p_tmm, height=3.2, width=3)
-ggsave(paste0(plot_file_var_explained_prefix, 'var_explained_tpm.pdf'), p_var_exp_tpm, height=1.5, width=3.5)
-ggsave(paste0(plot_file_var_explained_prefix, 'var_explained_tmm.pdf'), p_var_exp_tmm, height=1.5, width=3.5)
-ggsave(paste0(plot_file_var_explained_prefix, 'cor_trans_tpm.pdf'), p_cors_trans_tpm, height=1.5, width=3.5)
-ggsave(paste0(plot_file_var_explained_prefix, 'cor_trans_tmm.pdf'), p_cors_trans_tmm, height=1.5, width=3.5)
+ggsave(plot_file_PCs_tpm, p_tpm, height=3.2, width=3)
+ggsave(plot_file_PCs_tmm, p_tmm, height=3.2, width=3)
+ggsave(plot_file_var_explained_tpm, p_var_exp_tpm, height=1.5, width=3.5)
+ggsave(plot_file_var_explained_tmm, p_var_exp_tmm, height=1.5, width=3.5)
+ggsave(plot_file_cors_trans_tpm, p_cors_trans_tpm, height=1.5, width=3.5)
+ggsave(plot_file_cors_trans_tmm, p_cors_trans_tmm, height=1.5, width=3.5)

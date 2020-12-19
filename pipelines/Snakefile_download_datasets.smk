@@ -19,6 +19,7 @@ configfile: '../config.json'
 localrules: all
 
 keele_tissues=['kidney', 'liver', 'lung']
+cancer_types=['TCGA-ACC', 'TCGA-BLCA', 'TCGA-BRCA', 'TCGA-CESC', 'TCGA-CHOL', 'TCGA-COAD', 'TCGA-DLBC', 'TCGA-ESCA', 'TCGA-GBM', 'TCGA-HNSC', 'TCGA-KICH', 'TCGA-KIRP', 'TCGA-LAML', 'TCGA-LIHC', 'TCGA-LUAD', 'TCGA-LUSC', 'TCGA-MESO', 'TCGA-OV', 'TCGA-PAAD', 'TCGA-PCPG', 'TCGA-PRAD', 'TCGA-READ', 'TCGA-SARC', 'TCGA-SKCM', 'TCGA-STAD', 'TCGA-TGCT', 'TCGA-THCA', 'TCGA-THYM', 'TCGA-UCEC', 'TCGA-UVM']
 
 #---------------------------------#
 # Pipeline
@@ -26,6 +27,8 @@ keele_tissues=['kidney', 'liver', 'lung']
 
 rule all:
     input: 
+        # Download TCGA
+        expand(os.path.join(config['projectDir'], config['expression_matrices_dir'], '{cancer}.htseq_fpkm-uq.tsv.gz'), cancer=cancer_types),
         # Download Arora et al. 2020
         os.path.join(config['projectDir'], config['expression_datasets_dir'], 'arora', 'OriginalTCGAGTExData', 'file_md5sums.txt'),
         os.path.join(config['projectDir'], config['expression_datasets_dir'], 'arora', 'OriginalTCGAGTExData', 'SE_objects/gtex_mskcc_batch_log2_TPM.RData'),
@@ -103,7 +106,25 @@ rule create_lookup_table_for_expression:
         '''
         Rscript R/create_lookup_table_for_raw_counts.R {params} {output}
         '''
+        
+        
+##################################################
+## TCGA
                 
+rule download_TCGA: 
+    params:
+        cancer_types=" ".join(cancer_types),
+        out_dir=os.path.join(config['projectDir'], config['expression_matrices_dir'])
+    output:
+        expand(os.path.join(config['projectDir'], config['expression_matrices_dir'], '{cancer}.htseq_fpkm-uq.tsv.gz'), cancer=cancer_types),
+    shell:
+        '''
+        cd {params.out_dir}
+        for cancer in {params.cancer_types}
+        do 
+            wget https://gdc.xenahubs.net/download/${{cancer}}.htseq_fpkm-uq.tsv.gz
+        done
+        '''
 
 ##################################################
 ## GTEx 

@@ -9,14 +9,16 @@ source('plot_opts.R') # Contains formating options for all plots
 #-----------------------------------------------------------------------#
 # Args
 
+out_folder <- '../figures/figure_2_example/'
+
 # Outputs
-plot_file_N <- '../figures/1_all_expression_associations_lin_N.pdf'
-plot_file_directionality_tpm <- '../figures/1_all_expression_associations_lin_directionality_tpm.pdf'
-plot_file_directionality_tmm <- '../figures/1_all_expression_associations_lin_directionality_tmm.pdf'
+plot_file_N <- file.path(out_folder, 'all_expression_associations_lin_N.pdf')
+plot_file_directionality_tpm <- file.path(out_folder, 'all_expression_associations_lin_directionality_tpm.pdf')
+plot_file_directionality_tmm <- file.path(out_folder, 'all_expression_associations_lin_directionality_tmm.pdf')
 
 # Files
-association_results_tpm <- '../data/lin_expression_associations_tpm.txt'
-association_results_tmm <- '../data/lin_expression_associations_tmm.txt'
+association_results_tpm <- '../data/lin/lin_expression_associations_tpm.txt'
+association_results_tmm <- '../data/lin/lin_expression_associations_tmm.txt'
 
 
 FDR_cutoff <- 0.05 
@@ -47,8 +49,7 @@ significant_associations <- expression_associations %>%
     group_by(Type) %>%
     summarise(total =n(), significant=sum(FDR < FDR_cutoff)) %>%
     ungroup() %>%
-    mutate(non_significant= total - significant, Significant = 100*significant/total, Non_significant=100-Significant,
-            ) 
+    mutate(non_significant= total - significant, Significant = 100*significant/total, Non_significant=100-Significant) 
 
 # Percentages for barplot
 significant_associations_for_bar <- significant_associations %>%

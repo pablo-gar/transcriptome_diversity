@@ -234,6 +234,7 @@ resize_expression <- function(x, n, method='montecarlo', gene_names_as_rownames=
         x <-  resize_count_matrix(as.matrix(x), n, method=method)
         rownames(x) <- r_names
     } else {
+        x <- as.data.frame(x)
         x[,-1] <-  resize_count_matrix(as.matrix(x[,-1]), n, method=method)
     }
     

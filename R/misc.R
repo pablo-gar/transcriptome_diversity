@@ -374,7 +374,6 @@ concatenate_table_files2 <- function(x, header = T, id_names=NULL, join_rows=T, 
         stop('Length of x and id_names have to be equal')
     
     results <- MAP(x, id_names, function(x, y, ...){
-                           print(y)
                            a <- read_function(x, col_names=header, ...)
                            if(nrow(a) == 0)
                                return(NULL)

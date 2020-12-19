@@ -3,38 +3,25 @@
 library('readr')
 library('dplyr')
 library('tidyr')
-source('../../R/gtex.R', chdir=T)
-source('../../R/misc.R', chdir=T)
+source('../../R/transcriptome_diversity_tools.R')
 
 main <- function(cmdArgs=commandArgs(T)) {
     
     transcriptome_diversity_file <- cmdArgs[1]
-    tissue <- cmdArgs[2]
+    covariate_file <- cmdArgs[2]
     cor_pvalue_cutoff <- as.numeric(cmdArgs[3])
-    gtex_version <- cmdArgs[4]
-    out_cors <- cmdArgs[5]
-    out_stats <- cmdArgs[6]
+    out_cors <- cmdArgs[4]
+    out_stats <- cmdArgs[5]
+    out_trans_PEER <- cmdArgs[6]
     
-    if(!gtex_version %in% c('v7', 'v8'))
-        stop('Gtex version has to be v7 or v8 ')
-    
-    #transcriptome_diversity_file <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity/transcriptome_diversity/Whole_Blood.txt'
-    #tissue <- 'Whole_Blood'
-    #cor_pvalue_cutoff <- 0.05
-    #gtex_version <- 'v8'
-    #out_dir <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity/peer_associated_with_transcriptome_diversity/Whole_Blood/'
     
     # Read trasncriptome diversity
     transcriptome_diversity <- read_tsv(transcriptome_diversity_file)
-    transcriptome_diversity$transcriptome_diversity <- rankitNormalize_vector(transcriptome_diversity$transcriptome_diversity)
-    transcriptome_diversity$ind <- gtexLongToShort(transcriptome_diversity$gtexId)
+    transcriptome_diversity$transcriptome_diversity_rankit <- rankitNormalize_vector(transcriptome_diversity$transcriptome_diversity)
+    transcriptome_diversity$ind <- gtexLongToShort(transcriptome_diversity$sample_id)
     
     # Read PEER
-    if(gtex_version=='v8') {
-        peer <- readPEERCovariates(tissue, file.path(GTEX_CON$root, GTEX_CON$gtexPeerV8Dir))
-    } else {
-        peer <- readPEERCovariates(tissue)
-    }
+    peer <-  as.data.frame(t(read.table(covariate_file, sep='\t', stringsAsFactors=F, header=T, row.names=1, check.names=F)))
     
     peer <- as.data.frame(rankitNormalize(as.matrix(peer), 2))
     peer <- select(peer, starts_with('InferredCov'))
@@ -46,21 +33,26 @@ main <- function(cmdArgs=commandArgs(T)) {
 
     cors <- merged %>%
         group_by(feature) %>%
-        summarise(pearson_cor = cor_test(transcriptome_diversity, feature_value, val='estimate'),
-                  pvalue = cor_test(transcriptome_diversity, feature_value, val='p.value'),
+        summarise(pearson_cor = cor_test(transcriptome_diversity_rankit, feature_value, method='spearman', val='estimate'),
+                  pvalue = cor_test(transcriptome_diversity_rankit, feature_value, method='spearman', val='p.value'),
                   signed_pvalue = sign(pearson_cor) * -log10(pvalue)) %>%
         ungroup() %>%
         filter(!is.na(pearson_cor)) %>%
-        mutate(pvalue_bonf = p.adjust(pvalue)) %>%
-        filter(pvalue_bonf < cor_pvalue_cutoff)
+        mutate(pvalue_bonf = p.adjust(pvalue), fdr = p.adjust(pvalue, method='BH'))
     
     stats <- data.frame(total_peer=length(unique(peer$feature)), cor_with_transcriptome_diversity_peer=nrow(cors), cor_pvalue_cutoff=cor_pvalue_cutoff)
     
     # Save results
     write_tsv(cors, out_cors)
     write_tsv(stats, out_stats)
+    write_tsv(merged, out_trans_PEER)
     
     
+}
+
+# convert long gtex ids to short ones 
+gtexLongToShort <- function(x) {
+     gsub('(GTEX-\\w+?)-.+', '\\1', x)
 }
 
 main()

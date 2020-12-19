@@ -9,16 +9,16 @@ source('plot_opts.R') # Contains formating options for all plots
 #-----------------------------------------------------------------------#
 # Args
 
+out_folder <- '../figures/figure_2_example/'
+
 # Outputs
-plot_file_tpm <- '../figures/1_association_example_tpm.pdf'
-plot_file <- '../figures/1_association_example.pdf'
-plot_file_tmm <- '../figures/1_association_example_tmm.pdf'
+plot_file_tpm <- file.path(out_folder, 'association_example_tpm.pdf')
+plot_file_tmm <- file.path(out_folder, 'association_example_tmm.pdf')
 
 # Files
-exp_mat_file_tpm <- '../data/lin_tpm.txt'
-exp_mat_file_tmm <- '../data/lin_tmm.txt'
-trans_diversity_file_tpm  <- '../data/lin_tpm_transcriptome_diversity.txt'
-trans_diversity_file_tmm <- '../data/lin_tmm_transcriptome_diversity.txt'
+exp_mat_file_tpm <- '../data/lin/lin_tpm.txt'
+exp_mat_file_tmm <- '../data/lin/lin_tmm.txt'
+trans_diversity_file_tpm  <- '../data/lin/lin_tpm_transcriptome_diversity.txt'
 
 
 # Choose gene of interest
@@ -32,7 +32,6 @@ gene_alias <- 'Nca'
 exp_mat_tpm <- read_tsv(exp_mat_file_tpm)
 exp_mat_tmm <- read_tsv(exp_mat_file_tmm)
 trans_diversity_tpm  <- read_tsv(trans_diversity_file_tpm)
-trans_diversity_tmm <- read_tsv(trans_diversity_file_tmm)
 
 
 
@@ -41,15 +40,13 @@ trans_diversity_tmm <- read_tsv(trans_diversity_file_tmm)
 
 exp_mat_tpm$type <- 'TPM'
 exp_mat_tmm$type <- 'TMM'
-trans_diversity_tpm$type  <- 'TPM'
-trans_diversity_tmm$type <- 'TMM'
 
 # Gets gene of interest and merges tables
 exp_mat <- bind_rows(exp_mat_tmm[exp_mat_tmm$gene_id == gene,],
                      exp_mat_tpm[exp_mat_tmm$gene_id == gene,]) %>% 
     pivot_longer(-c(gene_id, type), names_to='sample_id', values_to='expression')
 
-trans_diversity <- bind_rows(trans_diversity_tpm, trans_diversity_tmm)
+trans_diversity <- trans_diversity_tpm
 
 all_data <- left_join(exp_mat, trans_diversity) %>%
     mutate(type=factor(type, levels=c('TPM', 'TMM'), ordered=T))

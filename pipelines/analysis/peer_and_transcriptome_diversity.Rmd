@@ -1,6 +1,6 @@
 
 ---
-title: "Associations between PEER features and transcriptome variability"
+title: "PEER covariates variance explained"
 output:
     html_document:
         fig_crop: no
@@ -15,21 +15,14 @@ options(digits=4)
 
 ```{r libraries}
 source('../../R/ggthemes.R', chdir=T)
-source('../../R/gtex.R', chdir=T)
 source('../../R/misc.R', chdir=T)
-#source('../../R/GWAS.R', chdir=T)
-#source('../../R/idConverter.R', chdir=T)
 source('../../R/plots.R', chdir=T)
-#source('../../R/misc.R', chdir=T)
 library('readr')
 library('ggplot2')
 library('purrr')
 library('dplyr')
 library('tidyr')
 library('kableExtra')
-library('broom')
-library('forcats')
-#library('broom')
 library('stringr')
 library('patchwork')
 ```
@@ -48,7 +41,7 @@ FILL_COL_TOTAL <- 'dodgerblue3'
 
 
 # Files
-transcriptome_diversity_file <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity/transcriptome_diversity_all_tissues.txt'
+PEER_dir <- '/scratch/users/paedugar/transcriptome_diversity/PEER_analyses/tpm/var_explained_by_transcriptome_diversity/lin/'
 cor_results_dir <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity/peer_associated_with_transcriptome_diversity/'
 
 lm_resutls_dir <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity/variance_explained_by_PEER/'

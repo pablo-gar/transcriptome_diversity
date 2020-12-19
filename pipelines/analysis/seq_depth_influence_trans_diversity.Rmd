@@ -1,0 +1,91 @@
+---
+title: "Associations between transcriptome diversity and seq depth (downsampling)"
+output:
+    html_document:
+        fig_witdh: 12
+        fig_height: 6
+        toc: true
+        toc_depth: 2
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+options(digits=4)
+```
+
+```{r libraries}
+source('../../R/ggthemes.R', chdir=T)
+source('../../R/misc.R', chdir=T)
+#source('../../R/transcriptome_diversity_tools.R', chdir=T)
+#source('../../R/GWAS.R', chdir=T)
+#source('../../R/gtex.R', chdir=T)
+#source('../../R/idConverter.R', chdir=T)
+source('../../R/plots.R', chdir=T)
+#source('../../R/misc.R', chdir=T)
+library('readr')
+library('dplyr')
+library('tidyr')
+library('ggplot2')
+#library('purrr')
+#library('kableExtra')
+#library('patchwork')
+#library('ggfortify')
+#library('broom')
+#library('stringr')
+#library('viridis')
+```
+
+
+Read data
+```{r results='hide'}
+results_dir <- '/scratch/users/paedugar/transcriptome_diversity/transcriptome_diversity/sampled_reads'
+dirs <- list.dirs(results_dir, full.names=F)[-1]
+
+all_results <- list()
+for(i in dirs) {
+    files <- list.files(file.path(results_dir, i), full.names=T, pattern='.txt')
+    
+    all_results[[i]] <- read_tsv(files)
+    all_results[[i]]$id_names <-  basename(gsub('.txt', '', files))
+    all_results[[i]]$seq_depth <-i
+}
+
+all_results <- do.call(bind_rows, all_results)
+
+all_results$seq_depth <- factor(all_results$seq_depth, levels=unique(all_results$seq_depth)[order(as.numeric(unique(all_results$seq_depth)), decreasing=F)], ordered=T)
+
+```
+
+```{r}
+dataset='lin'
+```
+
+```{r}
+current_data <-dplyr::filter(all_results, id_names == dataset)
+```
+
+
+Plot aagregate data
+```{r}
+
+ggplot(current_data, aes(x=seq_depth, y=transcriptome_diversity)) +
+    geom_boxplot() +
+    theme_grid_y() 
+
+```
+
+Plot lowest vs highest
+
+```{r}
+
+toPlot <- current_data %>%
+    select(-id_names) %>% 
+    pivot_wider(names_from=seq_depth, values_from=transcriptome_diversity)
+
+colnames(toPlot) <- paste0('seq_depth_', colnames(toPlot))
+
+scatter(as.data.frame(toPlot), x='seq_depth_5e6', y='seq_depth_10e6') +
+    theme_bw()
+
+```

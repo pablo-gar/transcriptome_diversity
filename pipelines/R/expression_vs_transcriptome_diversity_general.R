@@ -14,6 +14,8 @@ main <- function(cmdArgs=commandArgs(T)) {
 
     #transcriptome_diversity_file <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity_other_datasets/transcriptome_diversity/keele_kidney.txt'
     #expression_mat_file <- '/scratch/users/paedugar/cnv_gtex_project/expression_matrices/keele_kidney.txt'
+    #transcriptome_diversity_file <- '/scratch/users/paedugar/transcriptome_diversity/transcriptome_diversity/tpm/sarantopoulou_pico.txt'
+    #expression_mat_file <- '/scratch/users/paedugar/transcriptome_diversity/expression_matrices_processed/tpm/sarantopoulou_pico.txt'
     #out_file <- '/scratch/users/paedugar/cnv_gtex_project/transcriptome_diversity_other_datasets/expression_associations/keele_kidney.txt'
 
 
@@ -25,10 +27,13 @@ main <- function(cmdArgs=commandArgs(T)) {
     transcriptome_diversity <- matrix(transcriptome_diversity[,2], nrow=1, dimnames=list('transcriptome_diversity', transcriptome_diversity[,1]))
 
     # Reading expression mat
-    expression_mat <- read.table(expression_mat_file, header=T, sep="\t", stringsAsFactors=F, check.names=F)
+    expression_mat <- read_expression(expression_mat_file)
     rownames(expression_mat) <- expression_mat[,1]
     expression_mat <- as.matrix(expression_mat[,colnames(transcriptome_diversity)])
-    expression_mat <- expression_mat[rowSums(expression_mat>1) > (0.2 *(ncol(expression_mat))), ,drop=F]
+    
+    # Filter genes that are lowly expressed in 20% of samples of more 
+    #expression_mat <- expression_mat[rowSums(expression_mat>1) > (0.2 *(ncol(expression_mat))), ,drop=F]
+    expression_mat <- filter_rarely_expressed_genes(expression_mat, percentage=0.2, gene_names_as_rownames=T, count_cutoff=1)
     
     transcriptome_diversity <- rankitNormalize(transcriptome_diversity)
     expression_mat <- rankitNormalize(expression_mat)
